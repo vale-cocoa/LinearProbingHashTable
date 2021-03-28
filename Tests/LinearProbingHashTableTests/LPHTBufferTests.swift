@@ -1,5 +1,5 @@
 //
-//  LinearProbingHashTableTests.swift
+//  LPHTBufferTests.swift
 //  LinearProbingHashTableTests
 //
 //  Created by Valeriano Della Longa on 2021/03/27.
@@ -29,6 +29,34 @@
 import XCTest
 @testable import LinearProbingHashTable
 
-final class LinearProbingHashTableTests: XCTestCase {
+final class LPHTBufferTests: XCTestCase {
+    var sut: LPHTBuffer<String, Int>!
+    
+    override func setUp() {
+        super.setUp()
+        
+        sut = LPHTBuffer(capacity: 1)
+    }
+    
+    override func tearDown() {
+        sut = nil
+        
+        super.tearDown()
+    }
+    
+    // MARK: - Tests
+    func testInitCapacity() {
+        let capacity = Int.random(in: 1...10)
+        let m = capacity + 1
+        sut = LPHTBuffer(capacity: capacity)
+        
+        XCTAssertEqual(sut.capacity, capacity)
+        XCTAssertEqual(sut.count, 0)
+        XCTAssertEqual(sut.startIndex, m)
+        for i in 0..<m {
+            XCTAssertNil(sut.keys[i])
+            XCTAssertNil(sut.values[i])
+        }
+    }
     
 }
