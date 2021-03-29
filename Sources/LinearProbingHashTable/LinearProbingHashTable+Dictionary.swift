@@ -54,7 +54,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
     /// - Returns: A new hash table initialized with the elements of
     ///   `keysAndValues`.
     /// - Precondition: The sequence must not have duplicate keys.
-    public init<S: Sequence>(uniqueKeysWithValues keysAndValues: S) where S.Iterator.Element == Element {
+    public init<S: Sequence>(uniqueKeysWithValues keysAndValues: S) where S.Iterator.Element == (Key, Value) {
         self.init(keysAndValues) { _, _ in
             preconditionFailure("keys must be unique")
         }
@@ -90,7 +90,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
     ///   - combine:    A closure that is called with the values for any
     ///                 duplicate keys that are encountered.
     ///                 The closure returns the desired value for the final hash table.
-    public init<S>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows where S : Sequence, S.Iterator.Element == Element {
+    public init<S>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows where S : Sequence, S.Iterator.Element == (Key, Value) {
         if let other = keysAndValues as? LinearProbingHashTable<Key, Value> {
             self.init(other)
             
@@ -105,19 +105,19 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
                 else { return true }
                 
                 newBuffer = LPHTBuffer(capacity: Swift.max(1, (kvBuffer.count * 3) / 2))
-                for keyValuePair in keysAndValues {
-                    try newBuffer!.setValue(keyValuePair.value, forKey: keyValuePair.key, uniquingKeyWith: combine)
+                for (key, value) in keysAndValues {
+                    try newBuffer!.setValue(value, forKey: key, uniquingKeyWith: combine)
                 }
                 
                 return true
             } ?? false
         if !done {
             var kvIter = keysAndValues.makeIterator()
-            if let firstElement = kvIter.next() {
+            if let (firstKey, firstValue) = kvIter.next() {
                 newBuffer = LPHTBuffer(capacity: Swift.max(1, (keysAndValues.underestimatedCount * 3) / 2))
-                try newBuffer!.setValue(firstElement.value, forKey: firstElement.key, uniquingKeyWith: combine)
-                while let element = kvIter.next() {
-                    try newBuffer!.setValue(element.value, forKey: element.key, uniquingKeyWith: combine)
+                try newBuffer!.setValue(firstValue, forKey: firstKey, uniquingKeyWith: combine)
+                while let (key, value) = kvIter.next() {
+                    try newBuffer!.setValue(value, forKey: key, uniquingKeyWith: combine)
                     if newBuffer!.isFull {
                         let bigger = LPHTBuffer<Key, Value>.clone(buffer: newBuffer!, toNewCapacity: newBuffer!.capacity * 2)
                         newBuffer = bigger
@@ -151,7 +151,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
     ///   - values: A sequence of values to group into an hash table.
     ///   - keyForValue: A closure that returns a key for each element in
     ///     `values`.
-    public init<S>(grouping values: S, by keyForValue: (S.Element) throws -> Key) rethrows where Value == [S.Element], S : Sequence {
+    public init<S: Sequence>(grouping values: S, by keyForValue: (S.Element) throws -> Key) rethrows where Value == [S.Element] {
         var newBuffer: LPHTBuffer<Key, Value>? = nil
         let done: Bool = try values
             .withContiguousStorageIfAvailable { vBuff in
@@ -476,7 +476,7 @@ extension LinearProbingHashTable {
     ///   - combine:    A closure that takes the current and new values for any
     ///                 duplicate keys. The closure returns the desired value
     ///                 for the final hash table.
-    public mutating func merge<S: Sequence>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows where S.Iterator.Element == Element {
+    public mutating func merge<S: Sequence>(_ keysAndValues: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows where S.Iterator.Element == (Key, Value) {
         if let other = keysAndValues as? LinearProbingHashTable<Key, Value> {
             try merge(other, uniquingKeysWith: combine)
             
@@ -606,7 +606,7 @@ extension LinearProbingHashTable {
     ///                 for the final hash table.
     /// - Returns:  A new hash table with the combined keys and values
     ///             of this hash table and `other`.
-    func merging<S>(_ other: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LinearProbingHashTable where S : Sequence, S.Element == Element {
+    func merging<S>(_ other: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LinearProbingHashTable where S : Sequence, S.Element == (Key, Value) {
         if let otherHT = other as? LinearProbingHashTable {
             
             return try merging(otherHT, uniquingKeysWith: combine)

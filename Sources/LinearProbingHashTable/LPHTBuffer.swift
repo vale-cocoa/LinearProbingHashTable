@@ -339,9 +339,9 @@ extension LPHTBuffer {
     
 }
 
-// MARK: - merge operations
+// MARK: - Merge operations
 extension LPHTBuffer {
-    func merging<S: Sequence>(_ elements: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LPHTBuffer where S.Iterator.Element == Element {
+    func merging<S: Sequence>(_ elements: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LPHTBuffer where S.Iterator.Element == (Key, Value) {
         if let other = elements as? LPHTBuffer<Key, Value> {
             
             return try merging(other, uniquingKeysWith: combine)
@@ -358,8 +358,8 @@ extension LPHTBuffer {
             let mergedCapacity = self.count + b.count
             merged = LPHTBuffer.clone(buffer: self, toNewCapacity: mergedCapacity)
             
-            for elementToMerge in b {
-                try merged.setValue(elementToMerge.value, forKey: elementToMerge.key, uniquingKeyWith: combine)
+            for (key, value) in b {
+                try merged.setValue(value, forKey: key, uniquingKeyWith: combine)
             }
             
             return true
@@ -367,12 +367,12 @@ extension LPHTBuffer {
         if !done {
             merged = clone()
             var elementsIter = elements.makeIterator()
-            while let elementToMerge = elementsIter.next() {
+            while let (key, value) = elementsIter.next() {
                 if merged.isFull {
                     let bigger = LPHTBuffer<Key, Value>.clone(buffer: merged, toNewCapacity: merged.capacity * 2)
                     merged = bigger
                 }
-                try merged.setValue(elementToMerge.value, forKey: elementToMerge.key, uniquingKeyWith: combine)
+                try merged.setValue(value, forKey: key, uniquingKeyWith: combine)
             }
         }
         

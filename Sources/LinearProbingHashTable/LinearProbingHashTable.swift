@@ -27,8 +27,6 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 
 public struct LinearProbingHashTable<Key: Hashable, Value> {
-    final class ID {}
-    
     fileprivate(set) var buffer: LPHTBuffer<Key, Value>? = nil
     
     fileprivate(set) var id = ID()

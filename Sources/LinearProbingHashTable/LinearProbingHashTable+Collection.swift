@@ -27,6 +27,19 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 
 extension LinearProbingHashTable {
+    final class ID {}
+    
+    /// The position of a key-value pair in an hash table.
+    ///
+    /// Hash table has two subscripting interfaces:
+    ///
+    /// 1. Subscripting with a key, yielding an optional value:
+    ///
+    ///        v = d[k]!
+    ///
+    /// 2. Subscripting with an index, yielding a key-value pair:
+    ///
+    ///        (k, v) = d[i]
     public struct Index: Comparable {
         var bIdx: Int
         
