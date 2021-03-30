@@ -119,8 +119,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
                 while let (key, value) = kvIter.next() {
                     try newBuffer!.setValue(value, forKey: key, uniquingKeyWith: combine)
                     if newBuffer!.isFull {
-                        let bigger = LPHTBuffer<Key, Value>.clone(buffer: newBuffer!, newCapacity: newBuffer!.capacity * 2)
-                        newBuffer = bigger
+                        newBuffer = newBuffer!.clone(newCapacity: newBuffer!.capacity * 2)
                     }
                 }
             }
@@ -177,8 +176,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
                     let key = try keyForValue(value)
                     newBuffer!.setValue([value], forKey: key, uniquingKeyWith: +)
                     if newBuffer!.isFull {
-                        let bigger = LPHTBuffer<Key, Value>.clone(buffer: newBuffer!, newCapacity: newBuffer!.capacity * 2)
-                        newBuffer = bigger
+                        newBuffer = newBuffer!.clone(newCapacity: newBuffer!.capacity * 2)
                     }
                 }
             }

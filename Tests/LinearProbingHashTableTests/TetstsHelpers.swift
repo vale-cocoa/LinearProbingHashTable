@@ -58,7 +58,7 @@ let err = NSError(domain: "com.vdl.error", code: 1, userInfo: nil)
 func givenKeysAndValuesWithoutDuplicateKeys() -> [(key: String, value: Int)] {
     var keysAndValues = Array<(String, Int)>()
     var insertedKeys = Set<String>()
-    for _ in 0..<Int.random(in: 1..<20) {
+    for _ in 0..<Int.random(in: 10..<20) {
         var newKey = randomKey()
         while insertedKeys.insert(newKey).inserted == false {
             newKey = randomKey()
@@ -187,3 +187,69 @@ struct Seq<Element>: Sequence {
     }
     
 }
+
+// MARK: - Asserts
+func assertStartIndexIsCorrect<Key: Hashable, Value>(on buffer: LPHTBuffer<Key, Value>, file: StaticString = #file, line: UInt = #line) {
+    let m = buffer.capacity + 1
+    guard (0...m).contains(buffer.startIndex) else {
+        XCTFail("startIndex is out of bounds: \(buffer.startIndex) - bounds: \(0)..<\(m)", file: file, line: line)
+        
+        return
+    }
+    
+    guard
+        !buffer.isEmpty
+    else {
+        XCTAssertEqual(buffer.startIndex, m, "startIndex is: \(buffer.startIndex), but should be: \(buffer.capacity + 1)", file: file, line: line)
+        
+        return
+    }
+    for idx in 0..<buffer.startIndex {
+        guard
+            buffer.keys[idx] == nil
+        else {
+            XCTFail("startIndex is: \(buffer.startIndex), but should be: \(idx)", file: file, line: line)
+            
+            return
+        }
+    }
+    guard
+        buffer.keys[buffer.startIndex] != nil
+    else {
+        for idx in (buffer.startIndex + 1)..<m where buffer.keys[idx] != nil {
+            XCTFail("startIndex is: \(buffer.startIndex), but should be: \(idx)", file: file, line: line)
+            
+            return
+        }
+        fatalError("Should never reach here cause buffer is not empty, hence there should be an index containing a non-nil key!")
+    }
+    
+}
+
+// MARK: - other utitlies for tests
+extension LPHTBuffer {
+    // Get the initial index for given key without resolve of key collision
+    private func _initialIndex(forKey k: Key) -> Int {
+        let m = capacity + 1
+        var hasher = Hasher()
+        hasher.combine(k)
+        let hv = hasher.finalize()
+        
+        return (hv & 0x7fffffff) % m
+    }
+    
+    func keyCollisionsRatio<C: Collection>(onKeys: C, countOfIterations: Int = 1000) -> Double where C.Iterator.Element == Key {
+        precondition(countOfIterations > 0)
+        var keyCollisions = 0
+        for _ in 0..<countOfIterations {
+            for k in onKeys.shuffled() {
+                let initialIndex = _initialIndex(forKey: k)
+                let idx = index(forKey: k)
+                if keys[initialIndex] != keys[idx] { keyCollisions += 1 }
+            }
+        }
+        
+        return Double(keyCollisions) / Double(onKeys.count * countOfIterations)
+    }
+}
+

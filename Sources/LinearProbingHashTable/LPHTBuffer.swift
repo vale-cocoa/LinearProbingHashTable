@@ -87,6 +87,11 @@ final class LPHTBuffer<Key: Hashable, Value>: NSCopying {
         copy() as! LPHTBuffer<Key, Value>
     }
     
+    @inlinable
+    func clone(newCapacity: Int) -> LPHTBuffer {
+        Self.clone(buffer: self, newCapacity: newCapacity)
+    }
+    
 }
 
 // MARK: - Convenience Initializers
@@ -136,58 +141,13 @@ extension LPHTBuffer {
     
 }
 
-// MARK: - Static methods
-extension LPHTBuffer {
-    static func index(forKey k: Key, in buffer: LPHTBuffer) -> Int {
-        let m = buffer.capacity + 1
-        var hasher = Hasher()
-        hasher.combine(k)
-        let hv = hasher.finalize()
-        var idx = (hv & 0x7fffffff) % m
-        
-        while buffer.keys[idx] != k && buffer.keys[idx] != nil {
-            idx = (idx + 1) % m
-        }
-        
-        return idx
-    }
-    
-    @inlinable
-    static func clone(buffer: LPHTBuffer, newCapacity k: Int) -> LPHTBuffer {
-        precondition(k > 0, "new capacity must be greater than 0")
-        precondition(k >= buffer.count, "new capacity must be greater than or equal to count of elements stored in buffer to clone")
-        guard
-            k != buffer.capacity
-        else { return buffer.clone() }
-        
-        let clone = Self.init(capacity: k)
-        let m = buffer.capacity + 1
-        for bIdx in 0..<m where buffer.keys[bIdx] != nil {
-            let clonedIdx = index(forKey: buffer.keys[bIdx]!, in: clone)
-            let clonedKey: Key! = ((buffer.keys[bIdx] as? NSCopying)?.copy() as? Key) ?? buffer.keys[bIdx]
-            let clonedValue: Value! = ((buffer.values[bIdx] as? NSCopying)?.copy() as? Value) ?? buffer.values[bIdx]
-            clone.keys[clonedIdx] = clonedKey
-            clone.values[clonedIdx] = clonedValue
-        }
-        clone.count = buffer.count
-        clone.recomputeStartIndex()
-        
-        return clone
-    }
-    
-}
 
 // MARK: - C.R.U.D. methods
 extension LPHTBuffer {
     @inlinable
     func getValue(forKey k: Key) -> Value? {
-        /*
-        guard
-            let idx = index(ofKey: k)
-        else { return nil }
-        */
-        
         let idx = index(forKey: k)
+        
         return values[idx]
     }
     
@@ -280,11 +240,11 @@ extension LPHTBuffer: Sequence {
     typealias Element = (key: Key, value: Value)
     
     struct Iterator: IteratorProtocol {
-        var idx: Int
+        private(set) var idx: Int
         
         let m: Int
         
-        unowned(unsafe) var buffer: LPHTBuffer
+        private(set) unowned(unsafe) var buffer: LPHTBuffer
         
         init(_ buffer: LPHTBuffer) {
             self.buffer = buffer
@@ -330,9 +290,7 @@ extension LPHTBuffer {
         let mapped = LPHTBuffer<Key, T>.init(capacity: capacity)
         try forEach {
             let transformed = try transform($0.value)
-            mapped.setValue(transformed, forKey: $0.key, uniquingKeyWith: { _, _ in
-                return transformed
-            })
+            mapped.updateValue(transformed, forKey: $0.key)
         }
         
         return mapped
@@ -341,13 +299,12 @@ extension LPHTBuffer {
     @inlinable
     func compactMapValues<T>(_ transform: (Value) throws -> T?) rethrows -> LPHTBuffer<Key, T> {
         let cMapped = LPHTBuffer<Key, T>.init(capacity: capacity)
-        try forEach { element in
-            let transformed = try transform(element.value)
-            transformed.map { t in
-                cMapped.setValue(t, forKey: element.key, uniquingKeyWith: { _, _ in
-                    return t
-                })
-            }
+        try forEach {
+            guard
+                let transformed = try transform($0.value)
+            else { return }
+            
+            cMapped.updateValue(transformed, forKey: $0.key)
         }
         
         return cMapped
@@ -357,9 +314,11 @@ extension LPHTBuffer {
     func filter(_ isIncluded: (Element) throws -> Bool) rethrows -> LPHTBuffer {
         let filtered = LPHTBuffer.init(capacity: capacity)
         try forEach { element in
-            guard try isIncluded(element) else { return }
+            guard
+                try isIncluded(element)
+            else { return }
             
-            filtered.setValue(element.value, forKey: element.key, uniquingKeyWith: { _ ,_ in return element.value })
+            filtered.updateValue(element.value, forKey: element.key)
         }
         
         return filtered
@@ -427,22 +386,62 @@ extension LPHTBuffer {
 
 // MARK: - Helpers
 extension LPHTBuffer {
-    @inlinable
-    func recomputeStartIndex() {
-        let m = capacity + 1
-        var i = 0
-        while i < m {
-            if keys[i] != nil { break }
-            
-            i += 1
-        }
-        
-        startIndex = i
-    }
-    
     @inline(__always)
     func index(forKey k: Key) -> Int {
         Self.index(forKey: k, in: self)
+    }
+    
+}
+
+// MARK: - Private helpers
+extension LPHTBuffer {
+    @inline(__always)
+    fileprivate static func index(forKey k: Key, in buffer: LPHTBuffer) -> Int {
+        let m = buffer.capacity + 1
+        var hasher = Hasher()
+        hasher.combine(k)
+        let hv = hasher.finalize()
+        var idx = (hv & 0x7fffffff) % m
+        
+        while buffer.keys[idx] != k && buffer.keys[idx] != nil {
+            idx = (idx + 1) % m
+        }
+        
+        return idx
+    }
+    
+    @inline(__always)
+    fileprivate static func clone(buffer: LPHTBuffer, newCapacity k: Int) -> LPHTBuffer {
+        precondition(k > 0, "new capacity must be greater than 0")
+        precondition(k >= buffer.count, "new capacity must be greater than or equal to count of elements stored in buffer to clone")
+        guard
+            k != buffer.capacity
+        else { return buffer.clone() }
+        
+        let clone = Self.init(capacity: k)
+        let m = buffer.capacity + 1
+        for bIdx in 0..<m where buffer.keys[bIdx] != nil {
+            let clonedIdx = index(forKey: buffer.keys[bIdx]!, in: clone)
+            let clonedKey: Key! = ((buffer.keys[bIdx] as? NSCopying)?.copy() as? Key) ?? buffer.keys[bIdx]
+            let clonedValue: Value! = ((buffer.values[bIdx] as? NSCopying)?.copy() as? Value) ?? buffer.values[bIdx]
+            clone.keys[clonedIdx] = clonedKey
+            clone.values[clonedIdx] = clonedValue
+        }
+        clone.count = buffer.count
+        clone.recomputeStartIndex()
+        
+        return clone
+    }
+    
+    @inline(__always)
+    fileprivate func recomputeStartIndex() {
+        let m = capacity + 1
+        for i in 0..<m where keys[i] != nil {
+            startIndex = i
+            
+            return
+        }
+        startIndex = m
     }
     
 }
