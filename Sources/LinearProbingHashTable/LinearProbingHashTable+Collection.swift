@@ -55,15 +55,15 @@ extension LinearProbingHashTable {
             self.bIdx = hashTable.capacity + 1
         }
         
-        init(asIndexForKey k: Key, of hashTable: LinearProbingHashTable) {
+        init?(asIndexForKey k: Key, of hashTable: LinearProbingHashTable) {
             self.id = hashTable.id
-            if
-                let kIndex = hashTable.buffer?.index(forKey: k),
-                hashTable.buffer?.keys[kIndex] != nil
+            if  let kIndex = hashTable.buffer?.index(forKey: k),
+                hashTable.buffer!.keys[kIndex] == k
             {
                 self.bIdx = kIndex
             } else {
-                self.bIdx = hashTable.capacity + 1
+                
+                return nil
             }
         }
         
@@ -232,13 +232,7 @@ extension LinearProbingHashTable {
     /// - Returns:  The index for `key` and its associated value if `key` is in
     ///             the hash table; otherwise, `nil`.
     public func index(forKey key: Key) -> Index? {
-        let idx = Index(asIndexForKey: key, of: self)
-        
-        guard
-            idx.bIdx < capacity + 1
-        else { return nil }
-        
-        return idx
+        Index(asIndexForKey: key, of: self)
     }
     
 }

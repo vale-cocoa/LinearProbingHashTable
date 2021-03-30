@@ -82,6 +82,7 @@ final class LPHTBuffer<Key: Hashable, Value>: NSCopying {
         return Self.init(keys: clonedKeys, values: clonedValues, capacity: capacity, count: count)
     }
     
+    @inline(__always)
     func clone() -> LPHTBuffer {
         copy() as! LPHTBuffer<Key, Value>
     }
@@ -95,10 +96,20 @@ extension LPHTBuffer {
         let clonedKeys = UnsafeMutablePointer<Key?>.allocate(capacity: m)
         let clonedValues = UnsafeMutablePointer<Value?>.allocate(capacity: m)
         for idx in 0..<m {
-            let clonedKey: Key? = ((other.keys[idx] as? NSCopying)?.copy() as? Key?) ?? other.keys[idx]
+            let clonedKey: Key?
+            if let asNSCopying = other.keys[idx] as? NSCopying {
+                clonedKey = (asNSCopying.copy() as! Key)
+            } else {
+                clonedKey = other.keys[idx]
+            }
             clonedKeys.advanced(by: idx).initialize(to: clonedKey)
             
-            let clonedValue: Value? = ((other.values[idx] as? NSCopying)?.copy() as? Value?) ?? other.values[idx]
+            let clonedValue: Value?
+            if let asNSCopying = other.values[idx] as? NSCopying {
+                clonedValue = (asNSCopying.copy() as! Value)
+            } else {
+                clonedValue = other.values[idx]
+            }
             clonedValues.advanced(by: idx).initialize(to: clonedValue)
         }
         
@@ -109,48 +120,50 @@ extension LPHTBuffer {
 
 // MARK: - Computed properties
 extension LPHTBuffer {
+    @inlinable
     var isEmpty: Bool {
         count == 0
     }
     
+    @inlinable
     var isFull: Bool { count == capacity }
     
+    @inlinable
     var freeCapacity: Int { capacity - count }
     
-    var isTooSparse: Bool { freeCapacity > capacity / 8 }
+    @inlinable
+    var isTooSparse: Bool { freeCapacity > Swift.max(1, capacity / 8) }
     
 }
 
 // MARK: - Static methods
 extension LPHTBuffer {
-    static func idx(forKey k: Key, in buffer: LPHTBuffer) -> Int? {
+    static func index(forKey k: Key, in buffer: LPHTBuffer) -> Int {
         let m = buffer.capacity + 1
         var hasher = Hasher()
         hasher.combine(k)
         let hv = hasher.finalize()
         var idx = (hv & 0x7fffffff) % m
-        guard
-            buffer.keys[idx] != k
-        else { return idx }
         
-        guard
-            !buffer.isFull
-        else { return nil }
-        
-        while buffer.keys[idx] != nil {
+        while buffer.keys[idx] != k && buffer.keys[idx] != nil {
             idx = (idx + 1) % m
         }
         
         return idx
     }
     
-    static func clone(buffer: LPHTBuffer, toNewCapacity newCap: Int) -> LPHTBuffer {
-        precondition(newCap > 0, "new capacity must be greater than 0")
-        precondition(newCap >= buffer.count, "new capacity must be greater than or equal to count of elements stored in buffer to clone")
-        let clone = Self.init(capacity: newCap)
+    @inlinable
+    static func clone(buffer: LPHTBuffer, newCapacity k: Int) -> LPHTBuffer {
+        precondition(k > 0, "new capacity must be greater than 0")
+        precondition(k >= buffer.count, "new capacity must be greater than or equal to count of elements stored in buffer to clone")
+        guard
+            k != buffer.capacity
+        else { return buffer.clone() }
+        
+        let clone = Self.init(capacity: k)
         let m = buffer.capacity + 1
         for bIdx in 0..<m where buffer.keys[bIdx] != nil {
-            let clonedIdx = idx(forKey: buffer.keys[bIdx]!, in: buffer)!
+            let clonedIdx = index(forKey: buffer.keys[bIdx]!, in: clone)
             let clonedKey: Key! = ((buffer.keys[bIdx] as? NSCopying)?.copy() as? Key) ?? buffer.keys[bIdx]
             let clonedValue: Value! = ((buffer.values[bIdx] as? NSCopying)?.copy() as? Value) ?? buffer.values[bIdx]
             clone.keys[clonedIdx] = clonedKey
@@ -166,38 +179,51 @@ extension LPHTBuffer {
 
 // MARK: - C.R.U.D. methods
 extension LPHTBuffer {
+    @inlinable
     func getValue(forKey k: Key) -> Value? {
+        /*
         guard
-            let idx = index(forKey: k)
+            let idx = index(ofKey: k)
         else { return nil }
+        */
         
+        let idx = index(forKey: k)
         return values[idx]
     }
     
+    @inlinable
+    @discardableResult
     func updateValue(_ newValue: Value, forKey k: Key) -> Value? {
-        guard
-            let idx = index(forKey: k)
-        else { preconditionFailure("cannot add new elements when is full") }
-        
+        let idx = index(forKey: k)
         let oldValue = values[idx]
+        if oldValue == nil && isFull {
+            preconditionFailure("Cannot add new elements when is full.")
+        }
         defer {
             values[idx] = newValue
             if keys[idx] == nil {
                 keys[idx] = k
                 count += 1
-                recomputeStartIndex()
+                if idx < startIndex {
+                    startIndex = idx
+                }
             }
         }
         
         return oldValue
     }
     
+    @inlinable
     func setValue(_ v: Value, forKey k: Key, uniquingKeyWith combine: (Value, Value) throws -> Value) rethrows {
-        guard
-            let idx = index(forKey: k)
-        else { preconditionFailure("cannot add new elements when is full") }
+        let idx = index(forKey: k)
         
-        guard let oldValue = values[idx] else {
+        guard
+            let oldValue = values[idx]
+        else {
+            guard
+                !isFull
+            else { preconditionFailure("Cannot add new elements when is full.") }
+            
             keys[idx] = k
             values[idx] = v
             count += 1
@@ -208,13 +234,15 @@ extension LPHTBuffer {
             return
         }
         
-        let combinedValue = try combine(oldValue, v)
-        values[idx] = combinedValue
+        let newValue = try combine(oldValue, v)
+        values[idx] = newValue
     }
     
+    @inlinable
+    @discardableResult
     func removeElement(withKey k: Key) -> (key: Key, value: Value)? {
+        let idx = index(forKey: k)
         guard
-            let idx = index(forKey: k),
             keys[idx] != nil
         else { return nil }
         
@@ -226,10 +254,7 @@ extension LPHTBuffer {
             var bIdx = (idx + 1) % m
             while keys[bIdx] != nil {
                 let k = keys[bIdx]!
-                let nIdx = index(forKey: k)!
-                if nIdx == bIdx {
-                    break
-                }
+                let nIdx = index(forKey: k)
                 let v = values[bIdx]!
                 keys[bIdx] = nil
                 values[bIdx] = nil
@@ -237,7 +262,6 @@ extension LPHTBuffer {
                 values[nIdx] = v
                 bIdx = (bIdx + 1) % m
             }
-            
             count -= 1
             if isEmpty {
                 startIndex = m
@@ -290,6 +314,7 @@ extension LPHTBuffer: Sequence {
         
     }
     
+    @inlinable
     var underestimatedCount: Int { count }
     
     func makeIterator() -> Iterator {
@@ -300,6 +325,7 @@ extension LPHTBuffer: Sequence {
 
 // MARK: - map and filter values operations
 extension LPHTBuffer {
+    @inlinable
     func mapValues<T>(_ transform: (Value) throws -> T) rethrows -> LPHTBuffer<Key, T> {
         let mapped = LPHTBuffer<Key, T>.init(capacity: capacity)
         try forEach {
@@ -312,6 +338,7 @@ extension LPHTBuffer {
         return mapped
     }
     
+    @inlinable
     func compactMapValues<T>(_ transform: (Value) throws -> T?) rethrows -> LPHTBuffer<Key, T> {
         let cMapped = LPHTBuffer<Key, T>.init(capacity: capacity)
         try forEach { element in
@@ -326,6 +353,7 @@ extension LPHTBuffer {
         return cMapped
     }
     
+    @inlinable
     func filter(_ isIncluded: (Element) throws -> Bool) rethrows -> LPHTBuffer {
         let filtered = LPHTBuffer.init(capacity: capacity)
         try forEach { element in
@@ -341,6 +369,7 @@ extension LPHTBuffer {
 
 // MARK: - Merge operations
 extension LPHTBuffer {
+    @inlinable
     func merging<S: Sequence>(_ elements: S, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LPHTBuffer where S.Iterator.Element == (Key, Value) {
         if let other = elements as? LPHTBuffer<Key, Value> {
             
@@ -356,7 +385,7 @@ extension LPHTBuffer {
                 return true
             }
             let mergedCapacity = self.count + b.count
-            merged = LPHTBuffer.clone(buffer: self, toNewCapacity: mergedCapacity)
+            merged = LPHTBuffer.clone(buffer: self, newCapacity: mergedCapacity)
             
             for (key, value) in b {
                 try merged.setValue(value, forKey: key, uniquingKeyWith: combine)
@@ -369,7 +398,7 @@ extension LPHTBuffer {
             var elementsIter = elements.makeIterator()
             while let (key, value) = elementsIter.next() {
                 if merged.isFull {
-                    let bigger = LPHTBuffer<Key, Value>.clone(buffer: merged, toNewCapacity: merged.capacity * 2)
+                    let bigger = LPHTBuffer<Key, Value>.clone(buffer: merged, newCapacity: merged.capacity * 2)
                     merged = bigger
                 }
                 try merged.setValue(value, forKey: key, uniquingKeyWith: combine)
@@ -379,13 +408,14 @@ extension LPHTBuffer {
         return merged
     }
     
+    @inlinable
     func merging(_ other: LPHTBuffer, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LPHTBuffer {
         guard !other.isEmpty else { return clone() }
         
         guard !isEmpty else { return other.clone() }
         
         let mergedCapacity = count + other.count
-        let merged = LPHTBuffer<Key, Value>.clone(buffer: self, toNewCapacity: mergedCapacity)
+        let merged = LPHTBuffer<Key, Value>.clone(buffer: self, newCapacity: mergedCapacity)
         for elementToMerge in other {
             try merged.setValue(elementToMerge.value, forKey: elementToMerge.key, uniquingKeyWith: combine)
         }
@@ -397,6 +427,7 @@ extension LPHTBuffer {
 
 // MARK: - Helpers
 extension LPHTBuffer {
+    @inlinable
     func recomputeStartIndex() {
         let m = capacity + 1
         var i = 0
@@ -409,8 +440,9 @@ extension LPHTBuffer {
         startIndex = i
     }
     
-    func index(forKey k: Key) -> Int? {
-        Self.idx(forKey: k, in: self)
+    @inline(__always)
+    func index(forKey k: Key) -> Int {
+        Self.index(forKey: k, in: self)
     }
     
 }

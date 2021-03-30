@@ -97,7 +97,7 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
         }
         
         id = ID()
-        buffer = LPHTBuffer<Key, Value>.clone(buffer: buffer!, toNewCapacity: capacity * 2)
+        buffer = LPHTBuffer<Key, Value>.clone(buffer: buffer!, newCapacity: capacity * 2)
     }
     
     @inline(__always)
@@ -120,7 +120,7 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
         }
         
         let mCapacity = Swift.max(capacity / 2, 1)
-        buffer = LPHTBuffer<Key, Value>.clone(buffer: buffer!, toNewCapacity: mCapacity)
+        buffer = LPHTBuffer<Key, Value>.clone(buffer: buffer!, newCapacity: mCapacity)
     }
     
     @inline(__always)
@@ -136,7 +136,7 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
         
         id = ID()
         let mCapacity = buffer == nil ? Swift.max(k, 1) : Swift.max(((count + k) * 3) / 2, capacity * 2)
-        buffer = buffer == nil ? LPHTBuffer(capacity: mCapacity) : LPHTBuffer<Key,Value>.clone(buffer: buffer!, toNewCapacity: mCapacity)
+        buffer = buffer == nil ? LPHTBuffer(capacity: mCapacity) : LPHTBuffer<Key,Value>.clone(buffer: buffer!, newCapacity: mCapacity)
     }
     
     @inline(__always)
