@@ -137,8 +137,12 @@ extension LPHTBuffer {
     var freeCapacity: Int { capacity - count }
     
     @inlinable
-    var isTooSparse: Bool { freeCapacity > Swift.max(1, capacity / 8) }
-    
+    //var isTooSparse: Bool { freeCapacity > Swift.max(1, capacity / 8) }
+    var isTooSparse: Bool {
+        guard !isEmpty else { return capacity > 4 }
+        
+        return count < capacity / 8
+    }
 }
 
 

@@ -27,6 +27,8 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 
 public struct LinearProbingHashTable<Key: Hashable, Value> {
+    static var minimumBufferCapacity: Int { 4 }
+    
     fileprivate(set) var buffer: LPHTBuffer<Key, Value>? = nil
     
     fileprivate(set) var id = ID()
@@ -49,7 +51,7 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
         
         guard k > 0 else { return }
         
-        self.buffer = LPHTBuffer(capacity: k)
+        self.buffer = LPHTBuffer(capacity: Swift.max(k, Self.minimumBufferCapacity))
     }
     
     // MARK: - Computed Properties
@@ -87,6 +89,36 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
     }
     
     @inline(__always)
+    mutating func makeUnique() {
+        guard buffer != nil else {
+            id = ID()
+            buffer = LPHTBuffer(capacity: Self.minimumBufferCapacity)
+            
+            return
+        }
+        
+        if !isKnownUniquelyReferenced(&buffer!) {
+            buffer = buffer!.clone()
+        }
+    }
+    
+    @inline(__always)
+    mutating func makeUniqueReserving(minimumCapacity k: Int) {
+        assert(k >= 0, "minimumCapacity must not be negative")
+        guard
+            (buffer?.freeCapacity ?? 0) < k
+        else {
+            makeUnique()
+            
+            return
+        }
+        
+        id = ID()
+        let mCapacity = buffer == nil ? Swift.max(k, Self.minimumBufferCapacity) : Swift.max(((count + k) * 3) / 2, capacity * 2)
+        buffer = buffer == nil ? LPHTBuffer(capacity: mCapacity) : buffer!.clone(newCapacity: mCapacity)
+    }
+    
+    @inline(__always)
     mutating func makeUniqueEventuallyIncreasingCapacity() {
         guard
             (buffer?.isFull ?? false)
@@ -102,6 +134,8 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
     
     @inline(__always)
     mutating func makeUniqueEventuallyReducingCapacity() {
+        guard buffer != nil else { return }
+        
         guard
             !isEmpty
         else {
@@ -119,38 +153,8 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             return
         }
         
-        let mCapacity = Swift.max(capacity / 2, 1)
+        let mCapacity = Swift.max(capacity / 2, Self.minimumBufferCapacity)
         buffer = buffer?.clone(newCapacity: mCapacity)
-    }
-    
-    @inline(__always)
-    mutating func makeUniqueReserving(minimumCapacity k: Int) {
-        assert(k >= 0, "minimumCapacity musty not be negative")
-        guard
-            (buffer?.freeCapacity ?? 0) < k
-        else {
-            makeUnique()
-            
-            return
-        }
-        
-        id = ID()
-        let mCapacity = buffer == nil ? Swift.max(k, 1) : Swift.max(((count + k) * 3) / 2, capacity * 2)
-        buffer = buffer == nil ? LPHTBuffer(capacity: mCapacity) : buffer!.clone(newCapacity: mCapacity)
-    }
-    
-    @inline(__always)
-    mutating func makeUnique() {
-        guard buffer != nil else {
-            id = ID()
-            buffer = LPHTBuffer(capacity: 1)
-            
-            return
-        }
-        
-        if !isKnownUniquelyReferenced(&buffer!) {
-            buffer = buffer!.clone()
-        }
     }
     
 }

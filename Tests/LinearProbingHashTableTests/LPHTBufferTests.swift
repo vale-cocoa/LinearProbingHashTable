@@ -237,7 +237,9 @@ final class LPHTBufferTests: XCTestCase {
         let capacity = Int.random(in: 8...64)
         sut = LPHTBuffer(capacity: capacity)
         for i in 0..<capacity {
-            if sut.freeCapacity > capacity / 8 {
+            if sut.isEmpty && sut.capacity > 4 {
+                XCTAssertTrue(sut.isTooSparse)
+            } else if sut.count < capacity / 8 {
                 XCTAssertTrue(sut.isTooSparse)
             } else {
                 XCTAssertFalse(sut.isTooSparse)
@@ -1011,17 +1013,17 @@ final class LPHTBufferTests: XCTestCase {
             buffer.updateValue(v, forKey: k)
         }
         let ratioOfCollisions = buffer.keyCollisionsRatio(onKeys: elements.map({$0.0}))
-        XCTAssertGreaterThan(ratioOfCollisions, 0.45)
+        XCTAssertGreaterThan(ratioOfCollisions, 0.47)
     }
     
-    func testIndexForKey_ratioOfCollisions_withStringKey_whenHalfCapacityTaken() {
+    func testIndexForKey_ratioOfCollisions_withGoodHashingKey_whenHalfCapacityTaken() {
         let elements = givenKeysAndValuesWithoutDuplicateKeys()
         sut = LPHTBuffer(capacity: elements.count * 2)
         for (k, v) in elements.shuffled() {
             sut.updateValue(v, forKey: k)
         }
         let ratioOfCollisions = sut.keyCollisionsRatio(onKeys: elements.map({$0.0}))
-        XCTAssertLessThan(ratioOfCollisions, 0.45)
+        XCTAssertLessThan(ratioOfCollisions, 0.47)
     }
     
 }
