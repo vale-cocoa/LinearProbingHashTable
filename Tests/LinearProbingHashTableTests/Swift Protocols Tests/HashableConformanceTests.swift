@@ -2,6 +2,7 @@
 //  HashableConformanceTests.swift
 //  LinearProbingHashTableTests
 //
+//  Created by Valeriano Della Longa on 2021/04/01.
 //  Copyright © 2021 Valeriano Della Longa
 //
 //  Permission is hereby granted, free of charge, to any person

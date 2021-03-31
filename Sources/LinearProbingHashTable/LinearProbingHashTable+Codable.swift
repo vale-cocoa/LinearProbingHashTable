@@ -34,11 +34,13 @@ extension LinearProbingHashTable: Codable where Key: Codable, Value: Codable {
         
         /// Thrown when decoded data contains duplicate keys.
         case notUniqueKeys
+        
     }
     
     enum CodingKeys: CodingKey {
         case keys
         case values
+        
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -51,6 +53,7 @@ extension LinearProbingHashTable: Codable where Key: Codable, Value: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let arrayKeys = try container.decode(Array<Key>.self, forKey: .keys)
         let arrayValues = try container.decode(Array<Value>.self, forKey: .values)
+        
         guard
             arrayKeys.count == arrayValues.count
         else { throw Error.differentCountForDecodedKeysAndValues }

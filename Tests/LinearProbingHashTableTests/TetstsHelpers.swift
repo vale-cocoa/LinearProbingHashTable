@@ -77,6 +77,26 @@ func givenKeysAndValuesWithDuplicateKeys() -> [(key: String, value: Int)] {
     return result
 }
 
+var malformedJSONDataWithKeysAndValuesCountsNotMtching: Data {
+    let kv = [
+        "keys" : [ "A", "B", "C", "D", "E",],
+        "values": [1, 2, 3, 4, 5, 6, 7],
+    ] as [String : Any]
+    
+    return try! JSONSerialization.data(withJSONObject: kv, options: .prettyPrinted)
+}
+
+var malformedJSONDataWithDuplicateKeys: Data {
+    let keys = givenKeysAndValuesWithDuplicateKeys().map { $0.key }
+    let values = keys.map { _ in randomValue() }
+    
+    var kv = Dictionary<String, Any>()
+    kv["keys"] = keys
+    kv["values"] = values
+    
+    return try! JSONSerialization.data(withJSONObject: kv, options: .prettyPrinted)
+}
+
 // MARK: - Types for testing NSCopying
 final class CKey: NSCopying, Equatable, Hashable {
     var k: String
