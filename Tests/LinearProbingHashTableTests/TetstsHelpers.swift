@@ -226,6 +226,29 @@ func assertStartIndexIsCorrect<Key: Hashable, Value>(on buffer: LPHTBuffer<Key, 
     
 }
 
+func assertAreEqualAndHaveSameHashValue<T: Hashable>(lhs: T, rhs: T, _ message: String = "", file: StaticString = #file, line: UInt = #line) {
+    XCTAssertEqual(lhs, rhs, "are not equal - \(message)", file: file, line: line)
+    
+    var hasher = Hasher()
+    hasher.combine(lhs)
+    let lhsHashValue = hasher.finalize()
+    hasher = Hasher()
+    hasher.combine(rhs)
+    let rhsHashValue = hasher.finalize()
+    XCTAssertEqual(lhsHashValue, rhsHashValue, "have not equal hash values - \(message)", file: file, line: line)
+}
+
+func assertAreNotEqualAndHaveNotSameHashValue<T: Hashable>(lhs: T, rhs: T, _ message: String = "", file: StaticString = #file, line: UInt = #line) {
+    XCTAssertNotEqual(lhs, rhs, "are equal - \(message)", file: file, line: line)
+    var hasher = Hasher()
+    hasher.combine(lhs)
+    let lhsHashValue = hasher.finalize()
+    hasher = Hasher()
+    hasher.combine(rhs)
+    let rhsHashValue = hasher.finalize()
+    XCTAssertNotEqual(lhsHashValue, rhsHashValue, "have equal hash values - \(message)", file: file, line: line)
+}
+
 // MARK: - other utitlies for tests
 extension LPHTBuffer {
     // Get the initial index for given key without resolve of key collision
