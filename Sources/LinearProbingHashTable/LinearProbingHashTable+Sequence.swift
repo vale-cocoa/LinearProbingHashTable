@@ -31,19 +31,38 @@ extension LinearProbingHashTable: Sequence {
     
     /// An iterator over the members of a `LinearProbingHashTable<Key, Value>`.
     public struct Iterator: IteratorProtocol {
+        private var buffer: LPHTBuffer<Key, Value>?
+        
         private var bufferIterator: LPHTBuffer<Key, Value>.Iterator?
-           
-        fileprivate init(buffer: LPHTBuffer<Key, Value>?) {
-            self.bufferIterator = buffer?.makeIterator()
+         
+        private var nextElement: Element? = nil
+        
+        fileprivate init(ht: LinearProbingHashTable) {
+            self.buffer = ht.buffer
+            self.bufferIterator = ht.buffer?.makeIterator()
+            prepareNextElement()
         }
            
         public mutating func next() -> Element? {
-            guard bufferIterator != nil else { return nil }
-               
-            let nextElement = bufferIterator?.next()
-            if nextElement == nil { bufferIterator = nil }
-               
+            defer {
+                prepareNextElement()
+            }
+            
             return nextElement
+        }
+        
+        private mutating func prepareNextElement() {
+            guard bufferIterator != nil else { return }
+            
+            nextElement = bufferIterator!.next()
+            guard
+                nextElement != nil
+            else {
+                bufferIterator = nil
+                buffer = nil
+                
+                return
+            }
         }
         
     }
@@ -71,7 +90,7 @@ extension LinearProbingHashTable: Sequence {
     /// - Returns:  An iterator over the hash table with elements of type
     ///             `(key: Key, value: Value)`.
     public func makeIterator() -> Iterator {
-        Iterator(buffer: buffer)
+        Iterator(ht: self)
     }
     
 }
