@@ -104,7 +104,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
                     kvBuffer.baseAddress != nil && kvBuffer.count > 0
                 else { return true }
                 
-                newBuffer = LPHTBuffer(capacity: Swift.max(1, (kvBuffer.count * 3) / 2))
+                newBuffer = LPHTBuffer(capacity: Swift.max(Self.minimumBufferCapacity, (kvBuffer.count * 3) / 2))
                 for (key, value) in keysAndValues {
                     try newBuffer!.setValue(value, forKey: key, uniquingKeyWith: combine)
                 }
@@ -114,7 +114,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
         if !done {
             var kvIter = keysAndValues.makeIterator()
             if let (firstKey, firstValue) = kvIter.next() {
-                newBuffer = LPHTBuffer(capacity: Swift.max(1, (keysAndValues.underestimatedCount * 3) / 2))
+                newBuffer = LPHTBuffer(capacity: Swift.max(Self.minimumBufferCapacity, (keysAndValues.underestimatedCount * 3) / 2))
                 try newBuffer!.setValue(firstValue, forKey: firstKey, uniquingKeyWith: combine)
                 while let (key, value) = kvIter.next() {
                     try newBuffer!.setValue(value, forKey: key, uniquingKeyWith: combine)
@@ -157,7 +157,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
                 guard
                     vBuff.baseAddress != nil && vBuff.count > 0
                 else { return true }
-                newBuffer = LPHTBuffer(capacity: Swift.max(1, (vBuff.count * 3) / 2))
+                newBuffer = LPHTBuffer(capacity: Swift.max(Self.minimumBufferCapacity, (vBuff.count * 3) / 2))
                 for v in vBuff {
                     let k = try keyForValue(v)
                     newBuffer!.setValue([v], forKey: k, uniquingKeyWith: +)
@@ -169,7 +169,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
         if !done {
             var valuesIter = values.makeIterator()
             if let firstValue = valuesIter.next() {
-                newBuffer = LPHTBuffer(capacity: Swift.max(1, (values.underestimatedCount * 3) / 2))
+                newBuffer = LPHTBuffer(capacity: Swift.max(Self.minimumBufferCapacity, (values.underestimatedCount * 3) / 2))
                 let fKey = try keyForValue(firstValue)
                 newBuffer!.setValue([firstValue], forKey: fKey, uniquingKeyWith: +)
                 while let value = valuesIter.next() {
