@@ -41,7 +41,7 @@ extension LinearProbingHashTable {
     ///
     ///        (k, v) = d[i]
     public struct Index: Comparable {
-        var bIdx: Int
+        fileprivate(set) var bIdx: Int
         
         let id: ID
         
