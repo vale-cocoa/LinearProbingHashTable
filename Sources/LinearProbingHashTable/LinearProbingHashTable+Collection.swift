@@ -130,7 +130,7 @@ extension LinearProbingHashTable: Collection {
     
     public func index(after i: Index) -> Index {
         var j = i
-        j.moveToNext(for: self)
+        formIndex(after: &j)
         
         return j
     }
@@ -139,8 +139,16 @@ extension LinearProbingHashTable: Collection {
         precondition(distance >= 0 , "distance must not be negative")
         precondition(i.isValidFor(self), "invalid index for this hash table")
         let end = endIndex
+        guard
+            i.bIdx + distance < end.bIdx
+        else {
+            i = end
+            
+            return
+        }
+        
         var offset = 0
-        while offset < distance && i < end {
+        while offset < distance {
             i.moveToNext(for: self)
             offset += 1
         }
@@ -153,35 +161,32 @@ extension LinearProbingHashTable: Collection {
         return j
     }
     
-    public func formIndex(_ i: inout Self.Index, offsetBy distance: Int, limitedBy limit: Self.Index) -> Bool {
+    public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
         precondition(distance >= 0 , "distance must not be negative")
         precondition(i.isValidFor(self), "invalid index for this hash table")
         precondition(limit.isValidFor(self), "invalid limit index for this hash table")
+        // Just ignore the limit when is less than i
+        if limit < i { return index(i, offsetBy: distance) }
         
-        guard
-            distance > 0
-        else { return i <= limit }
-        
-        let end = endIndex
-        var offset = 0
-        while offset < distance && i < end && i < limit {
-            i.moveToNext(for: self)
-            offset += 1
+        // let's stride indices:
+        var result = i
+        for _ in stride(from: 0, to: distance, by: 1) {
+            // When we're gonna end up after limit we return nil
+            if result == limit { return nil }
+            // When we're already at endIndex with more positions to advance,
+            // we return nil
+            if result == endIndex { return nil }
+            result.moveToNext(for: self)
         }
         
-        return distance == offset
-    }
-    
-    public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
-        var j = i
-        
-        return formIndex(&j, offsetBy: distance, limitedBy: limit) ? j : nil
+        return result
     }
     
     public subscript(position: Index) -> (key: Key, value: Value) {
         get {
             precondition(position.isValidFor(self), "Invalid index for this hash table")
-            precondition(position.bIdx < capacity + 1, "Index out of bounds")
+            let m = capacity + 1
+            precondition((0..<m).contains(position.bIdx), "Index out of bounds")
             
             let k = buffer!.keys[position.bIdx]!
             let v = buffer!.values[position.bIdx]!
@@ -206,10 +211,13 @@ extension LinearProbingHashTable {
     /// - Complexity: Amortized O(1).
     @discardableResult
     public mutating func remove(at index: Index) -> Element {
-        precondition(index.isValidFor(self), "invalid index for this hash table")
+        precondition(index.isValidFor(self), "Invalid index for this hash table")
+        let m = capacity + 1
         guard
-            let removedK = buffer?.keys[index.bIdx] else {
-            preconditionFailure("index out of bounds")
+            (0..<m).contains(index.bIdx),
+            let removedK = buffer?.keys[index.bIdx]
+        else {
+            preconditionFailure("Index out of bounds")
         }
         
         let removedV = removeValue(forKey: removedK)!
