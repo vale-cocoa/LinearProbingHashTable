@@ -404,7 +404,7 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
         weak var prevID = sut.id
         let prevBuffer = sut.buffer!
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
+        XCTAssertFalse(sut.id === prevID, "has not changed id")
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         if sut.buffer != nil {
             XCTAssertLessThan(sut.buffer!.capacity, prevBuffer.capacity)

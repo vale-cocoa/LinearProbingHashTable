@@ -387,7 +387,7 @@ extension LinearProbingHashTable {
     /// Removes the given key and its associated value from the hash table.
     ///
     /// If the key is found in the hash table, this method returns the key's
-    /// associated value. This method invalidates all indices of the hash table.
+    /// associated value. This method might invalidate all indices of the hash table.
     ///
     ///     var hues: LinearProbingHashTable<String, Int> = ["Heliotrope": 296, "Coral": 16, "Aquamarine": 156]
     ///     if let value = hues.removeValue(forKey: "Coral") {

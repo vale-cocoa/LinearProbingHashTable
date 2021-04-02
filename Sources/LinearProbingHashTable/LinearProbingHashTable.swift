@@ -153,8 +153,9 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             return
         }
         
+        id = ID()
         let mCapacity = Swift.max(capacity / 2, Self.minimumBufferCapacity)
-        buffer = buffer?.clone(newCapacity: mCapacity)
+        buffer = buffer!.clone(newCapacity: mCapacity)
     }
     
 }
