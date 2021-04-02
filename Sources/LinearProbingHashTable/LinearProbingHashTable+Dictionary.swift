@@ -186,7 +186,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
     }
     
     fileprivate init(_ other: LinearProbingHashTable) {
-        self.init(buffer: other.buffer)
+        self.init(buffer: other.buffer, id: other.id)
     }
     
 }
@@ -329,9 +329,33 @@ extension LinearProbingHashTable {
             buffer?.getValue(forKey: key) ?? defaultValue()
         }
         
-        mutating set {
-            updateValue(newValue, forKey: key)
+        _modify {
+            makeUnique()
+            var other = LinearProbingHashTable<Key, Value>()
+            (self, other) = (other, self)
+            var ptr: UnsafeMutablePointer<Value?>
+            var b = other.buffer!
+            var nID = other.id
+            var i = b.index(forKey: key)
+            if b.keys[i] != nil {
+                ptr = b.values.advanced(by: i)
+            } else {
+                if b.isFull {
+                    let newCap = Swift.max(b.capacity * 2, b.count * 3 / 2)
+                    b = b.clone(newCapacity: newCap)
+                    i = b.index(forKey: key)
+                    nID = ID()
+                }
+                b.updateValue(defaultValue(), forKey: key)
+                ptr = b.values.advanced(by: i)
+            }
+            
+            defer {
+                self = LinearProbingHashTable(buffer: b, id: nID)
+            }
+            yield &ptr.pointee!
         }
+        
     }
     
     /// Returns the value associated to the the given key. If such key doesn't exists in the hash
@@ -424,7 +448,7 @@ extension LinearProbingHashTable {
         
     /// Removes all key-value pairs from the hash table.
     ///
-    /// Calling this method invalidates all indices of the hash table.
+    /// Calling this method might invalidate all indices of the hash table.
     ///
     /// - Parameter keepCapacity:   Whether the hash table should keep its
     ///                             underlying buffer.
@@ -442,6 +466,8 @@ extension LinearProbingHashTable {
             
             return
         }
+        guard !isEmpty else { return }
+        
         let prevCapacity = capacity
         self = Self(minimumCapacity: prevCapacity)
     }
@@ -526,13 +552,14 @@ extension LinearProbingHashTable {
         guard !other.isEmpty else { return }
         
         guard !isEmpty else {
-            self = LinearProbingHashTable(buffer: other.buffer)
+            self = LinearProbingHashTable(buffer: other.buffer, id: other.id)
             
             return
         }
         
         let mergedBuffer = try buffer!.merging(other.buffer!, uniquingKeysWith: combine)
-        self = LinearProbingHashTable(buffer: mergedBuffer)
+        let nID = mergedBuffer.capacity == capacity ? id : ID()
+        self = LinearProbingHashTable(buffer: mergedBuffer, id: nID)
     }
     
     /// Creates an hash table by merging the given hash table into this
@@ -568,9 +595,9 @@ extension LinearProbingHashTable {
     func merging(_ other: LinearProbingHashTable, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LinearProbingHashTable {
         guard !isEmpty else { return other }
         
-        var merged = self
-        guard !other.isEmpty else { return merged }
+        guard !other.isEmpty else { return self }
         
+        var merged = self
         try merged.merge(other, uniquingKeysWith: combine)
         
         return merged
@@ -680,8 +707,9 @@ extension LinearProbingHashTable {
     /// - Returns: An hash table of the key-value pairs that `isIncluded` allows.
     public func filter(_ isIncluded: (Element) throws -> Bool) rethrows -> LinearProbingHashTable {
         let filtered: LPHTBuffer<Key, Value>? = try buffer?.filter(isIncluded)
+        let nId = (filtered?.count ?? 0) == count ? id : ID()
         
-        return LinearProbingHashTable(buffer: filtered)
+        return LinearProbingHashTable(buffer: filtered, id: nId)
     }
     
 }

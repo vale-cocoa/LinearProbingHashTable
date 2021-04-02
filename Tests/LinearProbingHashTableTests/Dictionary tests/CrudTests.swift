@@ -232,26 +232,46 @@ final class CrudTests: BaseLPHTTests {
         XCTAssertTrue(sut.id === prevID)
     }
     
-    func testRemoveAll_whenBufferIsNotNil_CopyOnWriteAndIndicesInvalidation() {
-        whenContainsHalfElements()
+    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsTrue_CopyOnWriteAndIndicesInvalidation() {
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
         var prevBuffer = sut.buffer!
         var prevEndIndex = sut.endIndex
+        
         sut.removeAll(keepingCapacity: true)
-        XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
-        XCTAssertEqual(sut.capacity, prevBuffer.capacity)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
+        XCTAssertTrue(sut.buffer === prevBuffer, "has cloned buffer")
+        XCTAssertTrue(prevEndIndex.isValidFor(sut))
         
         whenContainsHalfElements()
         prevBuffer = sut.buffer!
         prevEndIndex = sut.endIndex
+        
+        sut.removeAll(keepingCapacity: true)
+        XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer to empty one")
+        XCTAssertFalse(prevEndIndex.isValidFor(sut))
+        
+        whenContainsAllElements()
+        prevBuffer = sut.buffer!
+        prevEndIndex = sut.endIndex
+        
+        sut.removeAll(keepingCapacity: true)
+        XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer to empty one")
+        XCTAssertFalse(prevEndIndex.isValidFor(sut))
+    }
+    
+    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsFalse_CopyOnWriteAndIndicesInvalidation() {
+        whenContainsHalfElements()
+        var prevBuffer = sut.buffer!
+        var prevEndIndex = sut.endIndex
+        
         sut.removeAll(keepingCapacity: false)
-        XCTAssertNil(sut.buffer)
+        XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         XCTAssertEqual(sut.capacity, 0)
         XCTAssertFalse(prevEndIndex.isValidFor(sut))
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         prevBuffer = sut.buffer!
         prevEndIndex = sut.endIndex
+        
         sut.removeAll(keepingCapacity: false)
         XCTAssertNil(sut.buffer)
         XCTAssertEqual(sut.capacity, 0)
@@ -356,27 +376,15 @@ final class CrudTests: BaseLPHTTests {
         }
     }
     
-    // subscript(key:default:) relies on updateValue(_:forKey:) for its setter,
-    // hence functionalities for copy on write and indices invalidation are already
-    // tested in the tests for that method.
-    func testSubscriptKeyDefault_setter_setsValueForKey() {
-        let defaultValue = randomValue() + 100
-        whenContainsHalfElements()
-        for k in notContainedKeys {
-            let newValue = randomValue() + 10
-            sut[k, default: defaultValue] = newValue
-            XCTAssertEqual(sut.getValue(forKey: k), newValue)
-        }
-        for k in containedKeys {
-            let newValue = randomValue() + 10
-            sut[k, default: defaultValue] = newValue
-            XCTAssertEqual(sut.getValue(forKey: k), newValue)
-        }
-    }
-    
-    func testSubscriptKeyDefault_getterThanSetter() {
+    func testSubscriptKeyDefault_modify_whenNoElementWithKey_thenAddNewElementWithDefaultValueForKeyAndYieldSuchValue() {
         let defaultValue = 1000
         whenIsEmpty()
+        for k in givenKeysAndValuesWithoutDuplicateKeys().map({ $0.key }) {
+            sut[k, default: defaultValue] += 100
+            XCTAssertEqual(sut.getValue(forKey: k), defaultValue + 100)
+        }
+        
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
         for k in givenKeysAndValuesWithoutDuplicateKeys().map({ $0.key }) {
             sut[k, default: defaultValue] += 100
             XCTAssertEqual(sut.getValue(forKey: k), defaultValue + 100)
@@ -387,13 +395,87 @@ final class CrudTests: BaseLPHTTests {
             sut[k, default: defaultValue] += 100
             XCTAssertEqual(sut.getValue(forKey: k), defaultValue + 100)
         }
-        
+    }
+    
+    func testSubscriptKeyDefault_modify_whenElementWithKey_thenYieldItsValue() {
+        let defaultValue = 1000
         whenContainsHalfElements()
         for k in containedKeys {
             let expectedResult = sut.getValue(forKey: k)! + 100
             sut[k, default: defaultValue] += 100
             XCTAssertEqual(sut.getValue(forKey: k), expectedResult)
         }
+    }
+    
+    func testSubscriptKeyDefault_modify_CopyOnWrite() {
+        whenIsEmpty()
+        var copy = sut!
+        weak var prevBuffer = copy.buffer
+        
+        sut[randomKey(), default: 1000] += 100
+        XCTAssertFalse(sut.buffer === copy.buffer, "has not cloned buffer")
+        XCTAssertTrue(copy.buffer === prevBuffer, "has changed copy's buffer")
+        
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
+        copy = sut!
+        prevBuffer = copy.buffer
+        
+        sut[randomKey(), default: 1000] += 100
+        XCTAssertFalse(sut.buffer === copy.buffer, "has not cloned buffer")
+        XCTAssertTrue(copy.buffer === prevBuffer, "has changed copy's buffer")
+        
+        whenContainsHalfElements()
+        copy = sut!
+        prevBuffer = copy.buffer
+        
+        sut[randomKey(), default: 1000] += 100
+        XCTAssertFalse(sut.buffer === copy.buffer, "has not cloned buffer")
+        XCTAssertTrue(copy.buffer === prevBuffer, "has changed copy's buffer")
+    }
+    
+    func testSubscriptKeyDefault_modify_whenDoesntResizeBuffer_thenDoesntInvalidateIndices() {
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
+        var prevEndIndex = sut.endIndex
+        while !sut.buffer!.isFull {
+            sut[randomKey(), default: 1000] += 100
+            XCTAssertTrue(prevEndIndex.isValidFor(sut))
+        }
+        
+        whenContainsHalfElements()
+        prevEndIndex = sut.endIndex
+        for k in containedKeys {
+            sut[k, default: 1000] += 100
+            XCTAssertTrue(prevEndIndex.isValidFor(sut))
+        }
+        
+        for k in notContainedKeys where sut.buffer!.isFull == false {
+            sut[k, default: 1000] += 100
+            XCTAssertTrue(prevEndIndex.isValidFor(sut))
+        }
+    }
+    
+    func testSubscriptKeyDefault_modify_whenResizesBuffer_thenInvalidateIndices() {
+        whenIsEmpty()
+        var prevEndIndex = sut.endIndex
+        
+        sut[randomKey(), default: 1000] += 100
+        XCTAssertFalse(prevEndIndex.isValidFor(sut))
+        
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
+        while !sut.buffer!.isFull { sut.updateValue(randomValue(), forKey: randomKey()) }
+        prevEndIndex = sut.endIndex
+        
+        sut[randomKey(ofLenght: 2), default: 1000] += 100
+        XCTAssertFalse(prevEndIndex.isValidFor(sut))
+        
+        whenContainsHalfElements()
+        for k in notContainedKeys where sut.buffer!.isFull == false {
+            sut.updateValue(randomValue(), forKey: k)
+        }
+        prevEndIndex = sut.endIndex
+        
+        sut[randomKey(ofLenght: 2), default: 1000] += 100
+        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
     func testReserveCapacity_whenBufferIsNil_thenInstanciatesNewBufferWithCapacityGreaterThanOrEqualToMinimumCapacityAndInvalidatesIndices() {

@@ -112,12 +112,19 @@ class BaseLPHTTests: XCTestCase {
         }
     }
     
-    func testInitBuffer() {
+    func testInitBufferID() {
         var buffer: LPHTBuffer<String, Int>? = nil
         
         sut = LinearProbingHashTable(buffer: buffer)
         XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
+        
+        let prevID = LinearProbingHashTable<String, Int>.ID()
+        
+        sut = LinearProbingHashTable(buffer: buffer, id: prevID)
+        XCTAssertTrue(sut.id === prevID)
+        XCTAssertNil(sut.buffer)
+        
         
         let elements = givenKeysAndValuesWithoutDuplicateKeys()
         buffer = LPHTBuffer(capacity: elements.capacity)
@@ -125,6 +132,10 @@ class BaseLPHTTests: XCTestCase {
         
         sut = LinearProbingHashTable(buffer: buffer)
         XCTAssertNotNil(sut.id)
+        XCTAssertTrue(sut.buffer === buffer, "has not the same buffer instance")
+        
+        sut = LinearProbingHashTable(buffer: buffer, id: prevID)
+        XCTAssertTrue(sut.id === prevID)
         XCTAssertTrue(sut.buffer === buffer, "has not the same buffer instance")
     }
     

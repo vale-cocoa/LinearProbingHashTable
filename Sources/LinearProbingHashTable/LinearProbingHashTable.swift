@@ -79,8 +79,9 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
     public var isEmpty: Bool { buffer?.isEmpty ?? true }
     
     // MARK: - C.O.W. helpers
-    init(buffer: LPHTBuffer<Key, Value>?) {
+    init(buffer: LPHTBuffer<Key, Value>?, id: ID = ID()) {
         self.buffer = buffer
+        self.id = id
     }
     
     @inline(__always)
