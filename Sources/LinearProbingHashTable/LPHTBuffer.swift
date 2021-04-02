@@ -346,8 +346,12 @@ extension LPHTBuffer {
                 
                 return true
             }
-            let mergedCapacity = self.count + b.count
-            merged = LPHTBuffer.clone(buffer: self, newCapacity: mergedCapacity)
+            
+            if b.count > freeCapacity {
+                merged = self.clone(newCapacity: Swift.max(capacity * 2, (count + b.count) * 3 / 2))
+            } else {
+                merged = self.clone()
+            }
             
             for (key, value) in b {
                 try merged.setValue(value, forKey: key, uniquingKeyWith: combine)
@@ -376,8 +380,8 @@ extension LPHTBuffer {
         
         guard !isEmpty else { return other.clone() }
         
-        let mergedCapacity = count + other.count
-        let merged = LPHTBuffer<Key, Value>.clone(buffer: self, newCapacity: mergedCapacity)
+        let mergedCapacity = freeCapacity < other.count ? Swift.max(capacity * 2, (count + other.count) * 3 / 2) : capacity
+        let merged = self.clone(newCapacity: mergedCapacity)
         for elementToMerge in other {
             try merged.setValue(elementToMerge.value, forKey: elementToMerge.key, uniquingKeyWith: combine)
         }

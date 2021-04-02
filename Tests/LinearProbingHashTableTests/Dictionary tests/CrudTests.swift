@@ -454,7 +454,7 @@ final class CrudTests: BaseLPHTTests {
         }
     }
     
-    func testSubscriptKeyDefault_modify_whenResizesBuffer_thenInvalidateIndices() {
+    func testSubscriptKeyDefault_modify_whenResizesBuffer_thenInvalidateIndices() throws {
         whenIsEmpty()
         var prevEndIndex = sut.endIndex
         
@@ -473,6 +473,7 @@ final class CrudTests: BaseLPHTTests {
             sut.updateValue(randomValue(), forKey: k)
         }
         prevEndIndex = sut.endIndex
+        try XCTSkipIf(sut.buffer!.isFull == false, "sut.buffer must be full for to be resized")
         
         sut[randomKey(ofLenght: 2), default: 1000] += 100
         XCTAssertFalse(prevEndIndex.isValidFor(sut))
