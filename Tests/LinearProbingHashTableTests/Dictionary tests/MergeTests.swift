@@ -324,4 +324,220 @@ final class MergeTests: BaseLPHTTests {
         }
     }
     
+    func testMergingOther_whenOtherIsEmpty_thenCombineNeverExecutesAndReturnsSelf() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        let other = LinearProbingHashTable<String, Int>()
+        
+        whenIsEmpty()
+        
+        var merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
+        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
+        
+        whenIsEmpty(withCapacity: Int.random(in: 1...10))
+        countOfExeutions = 0
+        
+        merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
+        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
+        
+        whenContainsHalfElements()
+        countOfExeutions = 0
+        
+        merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
+        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
+        
+        whenContainsAllElements()
+        countOfExeutions = 0
+        
+        merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
+        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
+    }
+    
+    func testMergingOther_whenIsEmptyAndOtherIsNotEmpty_thenCombineNeverExecutesAndReturnsOther() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        let other = LinearProbingHashTable<String, Int>(uniqueKeysWithValues: givenKeysAndValuesWithoutDuplicateKeys())
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.buffer === other.buffer, "has not same buffer of other")
+        XCTAssertTrue(merged.id === other.id, "has not same id of other")
+    }
+    
+    func testMergingOther_whenBothArentEmptyAndNoDuplicateKeys_thenCombineNeverExecutesAndReturnsMerged() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenContainsHalfElements()
+        let other = LinearProbingHashTable(uniqueKeysWithValues: notContainedKeys.map({ ($0, randomValue()) }))
+        let expectedResult = Dictionary(uniqueKeysWithValues: Array(sut)).merging(Array(other), uniquingKeysWith: combine)
+        countOfExeutions = 0
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertEqual(merged.count, expectedResult.count)
+        for (k, v) in expectedResult {
+            XCTAssertEqual(merged.getValue(forKey: k), v)
+        }
+    }
+    
+    func testMergingOther_wheBothArentEmptyAndDuplicateKeys_thenCombineExecutesForElementsWithDuplicateKeysAndReturnsMerged() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenContainsHalfElements()
+        let other = LinearProbingHashTable(uniqueKeysWithValues: containedKeys.map({ ($0, randomValue()) }))
+        let expectedResult = Dictionary(uniqueKeysWithValues: Array(sut)).merging(Array(other), uniquingKeysWith: combine)
+        let expectedCountOfExecutions = countOfExeutions
+        countOfExeutions = 0
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, expectedCountOfExecutions)
+        XCTAssertEqual(merged.count, expectedResult.count)
+        for (k, v) in expectedResult {
+            XCTAssertEqual(merged.getValue(forKey: k), v)
+        }
+    }
+    
+    func testMergingOther_whenCombineThrows_thenRethrows() {
+        let combine: (Int, Int) throws -> Int = { _, _ in throw err }
+        whenContainsHalfElements()
+        let other = LinearProbingHashTable(uniqueKeysWithValues: containedKeys.map({ ($0, randomValue()) }))
+        do {
+            let _ = try sut.merge(other, uniquingKeysWith: combine)
+            XCTFail("has not rethrown")
+        } catch {
+            XCTAssertEqual(error as NSError, err)
+        }
+    }
+    
+    func testMergingSequence_whenBothAreEmpty_thenCombineNeverExecutesAndReturnsEmptyHashTable() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        let other = [(String, Int)]()
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertTrue(merged.isEmpty)
+    }
+    
+    func testMergingSequence_whenIsEmptyAndOtherHasElementsWithoutDuplicateKeys_thenCombineNeverExecutesAndReturnsHashTableWithOtherElements() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        let other = givenKeysAndValuesWithoutDuplicateKeys()
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertEqual(merged.count, other.count)
+        for (k, v) in other {
+            XCTAssertEqual(merged.getValue(forKey: k), v)
+        }
+    }
+    
+    func testMergingSequence_whenIsEmptyAndOtherHasElementsWithDuplicateKeys_thenCombineExecutesForElementsWithDuplicateKeysAndReturnsHashTableFromOther() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        let other = givenKeysAndValuesWithDuplicateKeys()
+        let expectedResult = LinearProbingHashTable(other, uniquingKeysWith: combine)
+        let expectedCountOfExecutions = countOfExeutions
+        countOfExeutions = 0
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, expectedCountOfExecutions)
+        XCTAssertEqual(merged, expectedResult)
+    }
+    
+    func testMergingSequence_whenBotAreNotEmptyAndNoElementsWithDuplicateKeys_thenCombineNeverExecutesAndReturnsHashTableWithMergedElements() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenContainsHalfElements()
+        let other = notContainedKeys.map({ ($0, randomValue()) })
+        let expectedResult = Dictionary(uniqueKeysWithValues: Array(sut))
+            .merging(other, uniquingKeysWith: combine)
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, 0, "combine has executed")
+        XCTAssertEqual(merged.count, expectedResult.count)
+        for (k, v) in expectedResult {
+            XCTAssertEqual(merged.getValue(forKey: k), v)
+        }
+    }
+    
+    func testMergingSequence_whenBotAreNotEmptyAndElementsWithDuplicateKeys_thenCombineExecutesForElementsWithDuplicateKeysAndReturnsHashTableWithMergedElements() {
+        var countOfExeutions = 0
+        let combine: (Int, Int) -> Int = {
+            countOfExeutions += 1
+            
+            return $0 + $1
+        }
+        whenContainsHalfElements()
+        let other = containedKeys.map({ ($0, randomValue()) })
+        let expectedResult = Dictionary(uniqueKeysWithValues: Array(sut))
+            .merging(other, uniquingKeysWith: combine)
+        let expectedCountOfExecutions = countOfExeutions
+        countOfExeutions = 0
+        
+        let merged = sut.merging(other, uniquingKeysWith: combine)
+        XCTAssertEqual(countOfExeutions, expectedCountOfExecutions)
+        XCTAssertEqual(merged.count, expectedResult.count)
+        for (k, v) in expectedResult {
+            XCTAssertEqual(merged.getValue(forKey: k), v)
+        }
+    }
+    
+    func testMergingSequence_whenCombineThrows_thenRethrows() {
+        let combine: (Int, Int) throws -> Int = { _, _ in throw err }
+        whenContainsHalfElements()
+        let other = containedKeys.map({ ($0, randomValue()) })
+        
+        do {
+            let _ = try sut.merging(other, uniquingKeysWith: combine)
+            XCTFail("has not rethrown")
+        } catch {
+            XCTAssertEqual(error as NSError, err)
+        }
+    }
+    
 }

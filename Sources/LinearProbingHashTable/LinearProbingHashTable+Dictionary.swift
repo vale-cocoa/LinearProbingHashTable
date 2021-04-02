@@ -593,9 +593,9 @@ extension LinearProbingHashTable {
     /// - Returns:  A new hash table with the combined keys and values
     ///             of this hash table and `other`.
     func merging(_ other: LinearProbingHashTable, uniquingKeysWith combine: (Value, Value) throws -> Value) rethrows -> LinearProbingHashTable {
-        guard !isEmpty else { return other }
-        
         guard !other.isEmpty else { return self }
+        
+        guard !isEmpty else { return other }
         
         var merged = self
         try merged.merge(other, uniquingKeysWith: combine)
