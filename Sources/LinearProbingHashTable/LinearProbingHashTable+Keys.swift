@@ -87,10 +87,6 @@ extension LinearProbingHashTable {
             ht.index(i, offsetBy: distance)
         }
         
-        public func formIndex(_ i: inout Index, offsetBy distance: Int, limitedBy limit: Index) -> Bool {
-            ht.formIndex(&i, offsetBy: distance, limitedBy: limit)
-        }
-        
         public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
             ht.index(i, offsetBy: distance, limitedBy: limit)
         }
