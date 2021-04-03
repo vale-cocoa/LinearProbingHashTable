@@ -97,10 +97,6 @@ extension LinearProbingHashTable {
             ht.index(i, offsetBy: distance)
         }
         
-        public func formIndex(_ i: inout Index, offsetBy distance: Int, limitedBy limit: Index) -> Bool {
-            ht.formIndex(&i, offsetBy: distance, limitedBy: limit)
-        }
-        
         public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
             ht.index(i, offsetBy: distance, limitedBy: limit)
         }
@@ -110,12 +106,12 @@ extension LinearProbingHashTable {
                 ht[position].value
             }
             
-            mutating set {
+            _modify {
                 ht.makeUnique()
                 let m = ht.capacity + 1
                 precondition((0..<m).contains(position.bIdx), "Index out of bounds.")
                 precondition(ht.buffer?.keys[position.bIdx] != nil, "Invalid index for this hash table")
-                ht.buffer!.values[position.bIdx] = newValue
+                yield &ht.buffer!.values.advanced(by: position.bIdx).pointee!
             }
         }
         

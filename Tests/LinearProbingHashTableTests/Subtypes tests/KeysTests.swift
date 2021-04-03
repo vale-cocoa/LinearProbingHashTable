@@ -65,24 +65,24 @@ final class KeysTests: BaseLPHTTests {
     
     func testKeysSubType_startIndex_returnsSameValueOfHashTable() {
         whenIsEmpty()
-        XCTAssertEqual(sut.startIndex, sut.startIndex)
+        XCTAssertEqual(sut.keys.startIndex, sut.startIndex)
         
         whenContainsHalfElements()
-        XCTAssertEqual(sut.startIndex, sut.startIndex)
+        XCTAssertEqual(sut.keys.startIndex, sut.startIndex)
         
         whenContainsAllElements()
-        XCTAssertEqual(sut.startIndex, sut.startIndex)
+        XCTAssertEqual(sut.keys.startIndex, sut.startIndex)
     }
     
     func testKeysSubType_endIndex_returnsSameValueOfHashTable() {
         whenIsEmpty()
-        XCTAssertEqual(sut.endIndex, sut.endIndex)
+        XCTAssertEqual(sut.keys.endIndex, sut.endIndex)
         
         whenContainsHalfElements()
-        XCTAssertEqual(sut.endIndex, sut.endIndex)
+        XCTAssertEqual(sut.keys.endIndex, sut.endIndex)
         
         whenContainsAllElements()
-        XCTAssertEqual(sut.endIndex, sut.endIndex)
+        XCTAssertEqual(sut.keys.endIndex, sut.endIndex)
     }
     
     func testKeysSubType_indexAfter_returnsSameValueOfHashTableMethod() {
@@ -199,7 +199,8 @@ final class KeysTests: BaseLPHTTests {
         XCTAssertEqual(sut.keys, other.keys)
         
         whenContainsHalfElements()
-        other = sut.mapValues { $0 + 100 }
+        other = sut
+        for k in other.keys { other[k, default: 0] += 1 }
         XCTAssertEqual(sut.keys, other.keys)
         
         // when count of keys are different, then returns false
@@ -211,8 +212,8 @@ final class KeysTests: BaseLPHTTests {
         
         // when count of keys are equal but keys are different, then returns false
         other = sut
-        other.removeValue(forKey: keyToRemove)
-        other.updateValue(randomValue(), forKey: randomKey(ofLenght: 2))
+        let v = other.removeValue(forKey: keyToRemove)!
+        other.updateValue(v, forKey: randomKey(ofLenght: 2))
         XCTAssertEqual(sut.keys.count, other.keys.count)
         XCTAssertNotEqual(sut.keys, other.keys)
         
