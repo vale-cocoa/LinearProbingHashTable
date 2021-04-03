@@ -26,6 +26,9 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 //  OTHER DEALINGS IN THE SOFTWARE.
 
+/// A symbol table (aka associative array, aka dictionary) which uses as storage
+///  an hash table leveraging on linear probing algorithm. `LinearProbingHashTable`
+///  presents a public interface with identical functionalities of `Swift.Dictionary` type.
 public struct LinearProbingHashTable<Key: Hashable, Value> {
     static var minimumBufferCapacity: Int { 4 }
     
