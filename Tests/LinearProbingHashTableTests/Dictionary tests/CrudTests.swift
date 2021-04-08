@@ -97,30 +97,6 @@ final class CrudTests: BaseLPHTTests {
         XCTAssertEqual(copy.getValue(forKey: k), expectedCopyValue)
     }
     
-    func testUpdateValueForKey_whenBufferDoesntGrow_thenDoesntInvalidatePreviousStoredIndices() {
-        whenIsEmpty(withCapacity: 10)
-        for _ in 0..<10 {
-            let prevBuffer = sut.buffer
-            let prevEndIndex = sut.endIndex
-            sut.updateValue(randomValue(), forKey: randomKey())
-            XCTAssertFalse(sut.buffer === prevBuffer, "should have cloned the buffer")
-            XCTAssertEqual(sut.capacity, prevBuffer?.capacity)
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
-        }
-    }
-    
-    func testUpdateValueForKey_whenBufferGrows_thenInvalidatesPreviousStoredIndices() {
-        whenIsEmpty(withCapacity: 10)
-        for i in 0..<10 { sut.updateValue(randomValue(), forKey: randomKey(ofLenght: i + 1)) }
-        weak var prevBuffer = sut.buffer
-        let prevEndIndex = sut.endIndex
-        let prevCapacity = sut.capacity
-        sut.updateValue(randomValue(), forKey: randomKey(ofLenght: 11))
-        XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
-        XCTAssertGreaterThan(sut.capacity, prevCapacity, "has not grown capacity")
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
-    }
-    
     func testRemoveValueForKey_whenDoesntContainElementWithKey_thenDoesNotRemoveAnyElementAndReturnsNil() {
         whenIsEmpty()
         for _ in 0...10 {
@@ -168,114 +144,93 @@ final class CrudTests: BaseLPHTTests {
         }
     }
     
-    func testRemoveValueForKey_whenIsEmptyAndBufferIsTooSparse_thenReducesBufferCapacityAndInvalidatesPreviouslyStoredIndices() {
+    func testRemoveValueForKey_whenIsEmptyAndBufferIsTooSparse_thenReducesBufferCapacity() {
         whenIsEmpty(withCapacity: 10)
         XCTAssertTrue(sut.buffer!.isTooSparse)
         let prevBuffer = sut.buffer!
-        let prevEndIndex = sut.endIndex
         
         sut.removeValue(forKey: randomKey())
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         XCTAssertLessThan(sut.capacity, prevBuffer.capacity)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
-    func testRemoveValueForKey_whenIsNotEmptyAndBufferIsTooSparse_thenReducesBufferCapacityAndInvalidatesPreviouslyStoredIndices() {
+    func testRemoveValueForKey_whenIsNotEmptyAndBufferIsTooSparse_thenReducesBufferCapacity() {
         whenContainsHalfElements()
         sut.makeUniqueReserving(minimumCapacity: sut.count * 8)
         XCTAssertTrue(sut.buffer!.isTooSparse)
         
         weak var prevBuffer = sut.buffer!
-        let prevEndIndex = sut.endIndex
         let prevCapacity = sut.capacity
         
         sut.removeValue(forKey: randomKey())
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         XCTAssertLessThan(sut.capacity, prevCapacity)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
-    func testRemoveValueForKey_whenIsNotEmptyAndBufferIsNotTooSparse_thenDoesntReduceBufferCapacityAndInvalidatePreviouslyStoredIndicesWhenElementIsRemoved() {
+    func testRemoveValueForKey_whenIsNotEmptyAndBufferIsNotTooSparse_thenDoesntReduceBufferCapacity() {
         whenContainsHalfElements()
         weak var prevBuffer = sut.buffer
         var prevCapacity = sut.capacity
-        var prevEndIndex = sut.endIndex
         
         for k in notContainedKeys {
             XCTAssertNil(sut.removeValue(forKey: k), "has removed value but was not supposed to")
             XCTAssertTrue(sut.buffer === prevBuffer)
             XCTAssertEqual(sut.capacity, prevCapacity)
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
         }
         
         let k = containedKeys.randomElement()!
         prevCapacity = sut.capacity
         prevBuffer = sut.buffer
-        prevEndIndex = sut.endIndex
         
         XCTAssertNotNil(sut.removeValue(forKey: k), "has not removed value but was supposed to")
         XCTAssertTrue(sut.buffer === prevBuffer)
         XCTAssertEqual(sut.capacity, prevCapacity)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
     func testRemoveAll_whenBufferIsNil_thenNothingChanges() {
         whenIsEmpty()
-        weak var prevID = sut.id
-        sut.removeAll(keepingCapacity: true)
         
+        sut.removeAll(keepingCapacity: true)
         XCTAssertNil(sut.buffer)
-        XCTAssertTrue(sut.id === prevID)
         
         sut.removeAll(keepingCapacity: false)
         XCTAssertNil(sut.buffer)
-        XCTAssertTrue(sut.id === prevID)
     }
     
-    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsTrue_CopyOnWriteAndIndicesInvalidation() {
+    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsTrue_CopyOnWrite() {
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         var prevBuffer = sut.buffer!
-        var prevEndIndex = sut.endIndex
         
         sut.removeAll(keepingCapacity: true)
         XCTAssertTrue(sut.buffer === prevBuffer, "has cloned buffer")
-        XCTAssertTrue(prevEndIndex.isValidFor(sut))
         
         whenContainsHalfElements()
         prevBuffer = sut.buffer!
-        prevEndIndex = sut.endIndex
         
         sut.removeAll(keepingCapacity: true)
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer to empty one")
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
         
         whenContainsAllElements()
         prevBuffer = sut.buffer!
-        prevEndIndex = sut.endIndex
         
         sut.removeAll(keepingCapacity: true)
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer to empty one")
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
-    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsFalse_CopyOnWriteAndIndicesInvalidation() {
+    func testRemoveAll_whenBufferIsNotNilAndKeepCapacityIsFalse_CopyOnWrite() {
         whenContainsHalfElements()
         var prevBuffer = sut.buffer!
-        var prevEndIndex = sut.endIndex
         
         sut.removeAll(keepingCapacity: false)
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         XCTAssertEqual(sut.capacity, 0)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         prevBuffer = sut.buffer!
-        prevEndIndex = sut.endIndex
         
         sut.removeAll(keepingCapacity: false)
         XCTAssertNil(sut.buffer)
         XCTAssertEqual(sut.capacity, 0)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
     }
     
     func testSubscriptKey_getter_returnsSameOfGetValueForKey() {
@@ -302,8 +257,7 @@ final class CrudTests: BaseLPHTTests {
     }
     
     // Subscript setter relies on updateValue(_:forKey:) and removeValue(forKey:)
-    // methods, hence testing for copy on write and indices invalidation functionalities
-    // is already done in tests for those methods
+    // methods, hence testing for copy on write is already done in tests for those methods
     func testSubscriptKey_setter_whenNewValueIsNotNil_thenUpdatesElementWithKeyToNewValueOrCreatesNewElementWithKeyAndNewValue() {
         whenContainsHalfElements()
         for k in containedKeys {
@@ -433,93 +387,39 @@ final class CrudTests: BaseLPHTTests {
         XCTAssertTrue(copy.buffer === prevBuffer, "has changed copy's buffer")
     }
     
-    func testSubscriptKeyDefault_modify_whenDoesntResizeBuffer_thenDoesntInvalidateIndices() {
-        whenIsEmpty(withCapacity: Int.random(in: 1...10))
-        var prevEndIndex = sut.endIndex
-        while !sut.buffer!.isFull {
-            sut[randomKey(), default: 1000] += 100
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
-        }
-        
-        whenContainsHalfElements()
-        prevEndIndex = sut.endIndex
-        for k in containedKeys {
-            sut[k, default: 1000] += 100
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
-        }
-        
-        for k in notContainedKeys where sut.buffer!.isFull == false {
-            sut[k, default: 1000] += 100
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
-        }
-    }
-    
-    func testSubscriptKeyDefault_modify_whenResizesBuffer_thenInvalidateIndices() throws {
-        whenIsEmpty()
-        var prevEndIndex = sut.endIndex
-        
-        sut[randomKey(), default: 1000] += 100
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
-        
-        whenIsEmpty(withCapacity: Int.random(in: 1...10))
-        while !sut.buffer!.isFull { sut.updateValue(randomValue(), forKey: randomKey()) }
-        prevEndIndex = sut.endIndex
-        
-        sut[randomKey(ofLenght: 2), default: 1000] += 100
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
-        
-        whenContainsHalfElements()
-        for k in notContainedKeys where sut.buffer!.isFull == false {
-            sut.updateValue(randomValue(), forKey: k)
-        }
-        prevEndIndex = sut.endIndex
-        try XCTSkipIf(sut.buffer!.isFull == false, "sut.buffer must be full for to be resized")
-        
-        sut[randomKey(ofLenght: 2), default: 1000] += 100
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
-    }
-    
-    func testReserveCapacity_whenBufferIsNil_thenInstanciatesNewBufferWithCapacityGreaterThanOrEqualToMinimumCapacityAndInvalidatesIndices() {
+    func testReserveCapacity_whenBufferIsNil_thenInstanciatesNewBufferWithCapacityGreaterThanOrEqualToMinimumCapacity() {
         for minCapacity in 0...10 {
             whenIsEmpty()
-            let prevEndIndex = sut.endIndex
             sut.reserveCapacity(minCapacity)
             XCTAssertNotNil(sut.buffer)
             XCTAssertGreaterThanOrEqual(sut.capacity, minCapacity)
-            XCTAssertFalse(prevEndIndex.isValidFor(sut))
         }
     }
     
-    func testReserveCapacity_whenBufferIsNotNilAndMinimumCapacityIsLessThanOrEqualToBufferFreeCapacity_thenBufferStaysTheSameAndDoesntInvalidatesIndices() throws {
+    func testReserveCapacity_whenBufferIsNotNilAndMinimumCapacityIsLessThanOrEqualToBufferFreeCapacity_thenBufferStaysTheSame() throws {
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         for minCapacity in 1...sut.buffer!.freeCapacity {
-            let prevEndIndex = sut.endIndex
             weak var prevBuffer = sut.buffer
             sut.reserveCapacity(minCapacity)
             XCTAssertTrue(sut.buffer === prevBuffer)
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
         }
         
         whenContainsHalfElements()
         try XCTSkipIf(sut.buffer!.freeCapacity == 0)
         for minCapacity in 1...sut.buffer!.freeCapacity {
-            let prevEndIndex = sut.endIndex
             weak var prevBuffer = sut.buffer
             sut.reserveCapacity(minCapacity)
             XCTAssertTrue(sut.buffer === prevBuffer)
-            XCTAssertTrue(prevEndIndex.isValidFor(sut))
         }
     }
     
-    func testReserveCapacity_whenBufferIsNotNilAndMinimumCapacityIsGreaterThanOrEqualToBufferFreeCapacity_thenClonesBufferToOneWithFreeCapacityGreaterThanOrEqualToMinCapacityAndInvalidateIndices() {
+    func testReserveCapacity_whenBufferIsNotNilAndMinimumCapacityIsGreaterThanOrEqualToBufferFreeCapacity_thenClonesBufferToOneWithFreeCapacityGreaterThanOrEqualToMinCapacity() {
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         var minCapacity = sut.buffer!.freeCapacity + Int.random(in: 1...10)
         var prevBuffer = sut.buffer!
-        var prevEndIndex = sut.endIndex
         
         sut.reserveCapacity(minCapacity)
         XCTAssertFalse(sut.buffer === prevBuffer)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
         XCTAssertGreaterThanOrEqual(sut.buffer!.freeCapacity, minCapacity)
         XCTAssertEqual(sut.count, prevBuffer.count)
         for (k, v) in prevBuffer {
@@ -529,10 +429,8 @@ final class CrudTests: BaseLPHTTests {
         whenContainsHalfElements()
         minCapacity = sut.buffer!.freeCapacity + Int.random(in: 1...10)
         prevBuffer = sut.buffer!
-        prevEndIndex = sut.endIndex
         sut.reserveCapacity(minCapacity)
         XCTAssertFalse(sut.buffer === prevBuffer)
-        XCTAssertFalse(prevEndIndex.isValidFor(sut))
         XCTAssertGreaterThanOrEqual(sut.buffer!.freeCapacity, minCapacity)
         XCTAssertEqual(sut.count, prevBuffer.count)
         for (k, v) in prevBuffer {

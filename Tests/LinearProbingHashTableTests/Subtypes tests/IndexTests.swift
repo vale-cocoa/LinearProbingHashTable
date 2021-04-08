@@ -33,12 +33,10 @@ final class IndexTests: BaseLPHTTests {
     func testInitAsStartIndexOf_whenIsEmpty() {
         whenIsEmpty()
         var idx = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         XCTAssertEqual(idx.bIdx, sut.capacity + 1)
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         idx = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         XCTAssertEqual(idx.bIdx, sut.capacity + 1)
     }
     
@@ -46,7 +44,6 @@ final class IndexTests: BaseLPHTTests {
         whenContainsHalfElements()
         let m = sut.capacity + 1
         let idx = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         guard
             (0..<m).contains(idx.bIdx)
         else {
@@ -69,19 +66,16 @@ final class IndexTests: BaseLPHTTests {
     func testInitAsEndIndexOf_whenIsEmpty() {
         whenIsEmpty()
         var idx = LinearProbingHashTable.Index.init(asEndIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         XCTAssertEqual(idx.bIdx, sut.capacity + 1)
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         idx = LinearProbingHashTable.Index.init(asEndIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         XCTAssertEqual(idx.bIdx, sut.capacity + 1)
     }
     
     func testInitAsEndIndexOf_whenIsNotEmpty() {
         whenContainsHalfElements()
         let idx = LinearProbingHashTable.Index.init(asEndIndexOf: sut)
-        XCTAssertTrue(idx.id === sut.id, "has not set the right id")
         XCTAssertEqual(idx.bIdx, sut.capacity + 1)
     }
     
@@ -103,7 +97,6 @@ final class IndexTests: BaseLPHTTests {
         let m = sut.capacity + 1
         for (k, v) in sut {
             if let idx = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut) {
-                XCTAssertTrue(idx.id === sut.id, "has not set the right id")
                 if (0..<m).contains(idx.bIdx) {
                     XCTAssertEqual(sut.buffer?.keys[idx.bIdx], k)
                     XCTAssertEqual(sut.buffer?.values[idx.bIdx], v)
@@ -123,154 +116,130 @@ final class IndexTests: BaseLPHTTests {
         }
     }
     
-    func testIsValidFor_whenIdIsSameReference_thenReturnsTrue() {
-        whenContainsAllElements()
-        for (k, _) in sut {
-            if
-                let idx = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut),
-                idx.id === sut.id
-            {
-                XCTAssertTrue(idx.isValidFor(sut))
-            } else {
-                XCTFail("init(AsIndexForKey:of:) returned an invalid index or nil")
-            }
-        }
-        let endIdx = LinearProbingHashTable.Index.init(asEndIndexOf: sut)
-        XCTAssertTrue(endIdx.isValidFor(sut))
-    }
-    
-    func testIsValidFor_whenIdIsDifferentReference_thenReturnsFalse() {
-        whenContainsAllElements()
-        let other = sut!
-        whenContainsHalfElements()
-        XCTAssertFalse(sut.id === other.id)
-        
-        for (k, _) in other {
-            if
-                let idx = LinearProbingHashTable.Index.init(asIndexForKey: k, of: other),
-                idx.id === other.id
-            {
-                XCTAssertFalse(idx.isValidFor(sut))
-            }else {
-                XCTFail("init(AsIndexForKey:of:) returned an invalid index or nil")
-            }
-        }
-        let endIndex = LinearProbingHashTable.Index.init(asEndIndexOf: other)
-        XCTAssertFalse(endIndex.isValidFor(sut))
-    }
-    
-    func testMoveToNextFor_advancesIndexToNextElementAndFinallyToEndIndexPosition() {
-        whenContainsHalfElements()
-        let m = sut.capacity + 1
+    func testElementOn_whenIsEmpty_thenReturnsNil() {
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
         var idx = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        for (k, v) in sut {
-            guard
-                (0..<m).contains(idx.bIdx)
-            else {
-               XCTFail("has returned an index out of bounds")
-                
-                continue
-            }
-            
-            XCTAssertEqual(sut.buffer?.keys[idx.bIdx], k)
-            XCTAssertEqual(sut.buffer?.values[idx.bIdx], v)
-            idx.moveToNext(for: sut)
-            guard
-                idx.isValidFor(sut)
-            else {
-                XCTFail("has returned an invalid index")
-                
-                continue
-            }
+        for i in 0...10 {
+            idx.bIdx = i
+            XCTAssertNil(idx.element(on: sut))
         }
-        if idx.bIdx == m {
-            idx.moveToNext(for: sut)
-            XCTAssertTrue(idx.isValidFor(sut))
-            XCTAssertEqual(idx.bIdx, m, "gone past endIndex position")
-        } else {
-            XCTFail("has not advanced to endIndex position")
+    }
+    
+    func testElementOn_whenIsNotEmptyAndBIdxValueIsGreaterThanCapacity_thenReturnsNil() {
+        whenContainsHalfElements()
+        var idx = sut.startIndex
+        let m = sut.capacity + 1
+        idx.bIdx = Int.random(in: m...(m+10))
+        XCTAssertNil(idx.element(on: sut))
+    }
+    
+    func testElementOn_whenIsNotEmptyAndBIdxIsLessThanOrEqualToCapacityAndPointsToANilKey_thenReturnsNil() {
+        whenContainsHalfElements()
+        var idx = sut.startIndex
+        for i in 0..<(sut.capacity + 1) where sut.buffer?.keys[i] == nil {
+            idx.bIdx = i
+            XCTAssertNil(idx.element(on: sut))
         }
+    }
+    
+    func testElementOn_whenIsNotEmptyAndBIdxIsLessThanOrEqualToCapacityAndPointsToANonNilElement_thenReturnsThatElement() {
+        whenContainsHalfElements()
+        var idx = sut.startIndex
+        for i in 0..<(sut.capacity + 1) where sut.buffer?.keys[i] != nil && sut.buffer?.values[i] != nil {
+            idx.bIdx = i
+            let e = idx.element(on: sut)
+            XCTAssertNotNil(e)
+            XCTAssertEqual(e?.key, sut.buffer?.keys[idx.bIdx])
+            XCTAssertEqual(e?.value, sut.buffer?.values[idx.bIdx])
+        }
+    }
+    
+    func testMoveToNextOn_increasesAtLeastByOneBIdx() {
+        whenContainsHalfElements()
+        var idx = sut.startIndex
+        for _ in 0..<100 {
+            let prevBIdx = idx.bIdx
+            idx.moveToNext(on: sut)
+            XCTAssertGreaterThanOrEqual(idx.bIdx, prevBIdx + 1)
+        }
+    }
+    
+    func testMoveToNextOn_whenBIdxIsLessThanCapacityAndThereIsNoElementAfterBIdxInBuffer_thenReturnsNil() {
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        var idx = sut.startIndex
+        idx.bIdx = 0
+        XCTAssertNil(idx.moveToNext(on: sut))
+        
+        whenContainsHalfElements()
+        sut.buffer?.keys[sut.capacity] = nil
+        sut.buffer?.values[sut.capacity] = nil
+        var lastBIdx = sut.capacity
+        while sut.buffer?.keys[lastBIdx] == nil {
+            lastBIdx -= 1
+        }
+        idx.bIdx = lastBIdx
+        
+        XCTAssertNil(idx.moveToNext(on: sut))
+    }
+    
+    func testMoveToNextOn_whenBIdxIsGreaterThanCapacity_thenReturnsNil() {
+        whenIsEmpty(withCapacity: Int.random(in: 0...10))
+        var idx = sut.startIndex
+        idx.bIdx = sut.capacity + 1
+        XCTAssertNil(idx.moveToNext(on: sut))
+        
+        whenContainsHalfElements()
+        idx = sut.startIndex
+        idx.bIdx = sut.capacity + 1
+        XCTAssertNil(idx.moveToNext(on: sut))
+    }
+    
+    func testMoveToNextOn_whenBIdxIsLessThanCapacityAndThereIsAnElementAfterBIdxInBuffer_thenAdvancesBIdxToThatValueAndReturnsTheElement() throws {
+        whenContainsHalfElements()
+        var idx = sut.startIndex
+        var expectedBIdxValue = idx.bIdx + 1
+        while expectedBIdxValue <= sut.capacity && sut.buffer?.keys[expectedBIdxValue] == nil {
+            expectedBIdxValue += 1
+        }
+        let e = idx.moveToNext(on: sut)
+        try XCTSkipIf(e == nil && sut.buffer?.keys[expectedBIdxValue] == nil)
+        XCTAssertEqual(idx.bIdx, expectedBIdxValue)
+        XCTAssertEqual(e?.key, sut.buffer?.keys[expectedBIdxValue])
+        XCTAssertEqual(e?.value, sut.buffer?.values[expectedBIdxValue])
     }
     
     func testEqual_returnsTrueWhenHaveSameBIdxValue() {
         whenContainsHalfElements()
         var lhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        for (k, _) in sut {
-            let rhs = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut)!
-            guard
-                lhs.bIdx == rhs.bIdx
-            else  {
-                preconditionFailure("indices have not the same bIdx")
-            }
-            
+        var rhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
+        for _ in 0..<(sut.capacity + 1) {
             XCTAssertEqual(lhs, rhs)
-            lhs.moveToNext(for: sut)
+            lhs.bIdx += 1
+            rhs.bIdx += 1
         }
-        
-        let rhs = LinearProbingHashTable.Index.init(asEndIndexOf: sut)
-        guard
-            lhs.bIdx == rhs.bIdx
-        else  {
-            preconditionFailure("indices have not the same bIdx")
-        }
-        
-        XCTAssertEqual(lhs, rhs)
     }
     
     func testEqual_returnsFalseWhenHaveDifferentBIdxValue() {
         whenContainsAllElements()
         var lhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        for (k, _) in sut {
-            lhs.moveToNext(for: sut)
-            let rhs = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut)!
-            guard
-                lhs.bIdx != rhs.bIdx
-            else  {
-                preconditionFailure("indices have the same bIdx")
-            }
-            
+        var rhs = lhs
+        lhs.bIdx += 1
+        for _ in 0..<(sut.capacity + 1) {
             XCTAssertNotEqual(lhs, rhs)
+            lhs.bIdx += 1
+            rhs.bIdx += 1
         }
     }
     
     func testIsLessThan_returnsTrueWhenLHSHasBIdxValueLessThanRHS() {
         whenContainsAllElements()
-        var rhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        for (k, _) in sut {
-            rhs.moveToNext(for: sut)
-            let lhs = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut)!
-            guard
-                lhs.bIdx < rhs.bIdx
-            else  {
-                preconditionFailure("lhs.bIdx is not less than rhs.bIdx")
-            }
-            
+        var lhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
+        var rhs = lhs
+        rhs.bIdx += 1
+        for _ in 0..<(sut.capacity + 1) {
             XCTAssertLessThan(lhs, rhs)
-        }
-    }
-    
-    func testIsLessThan_returnsFalseWhenLHSHasBIdxValueGreaterThanOrEqualToRHSBIdx() {
-        whenContainsAllElements()
-        var rhs = LinearProbingHashTable.Index.init(asStartIndexOf: sut)
-        for (k, _) in sut {
-            var lhs = LinearProbingHashTable.Index.init(asIndexForKey: k, of: sut)!
-            guard
-                lhs.bIdx == rhs.bIdx
-            else {
-                preconditionFailure("lhs.bIdx is not equal to rhs.bIdx")
-            }
-            
-            XCTAssertFalse(lhs < rhs)
-            
-            lhs.moveToNext(for: sut)
-            guard
-                lhs.bIdx > rhs.bIdx
-            else {
-                preconditionFailure("lhs.bIdx is not greater than rhs.bIdx")
-            }
-            XCTAssertFalse(lhs < rhs)
-            
-            rhs.moveToNext(for: sut)
+            lhs.bIdx += 1
+            rhs.bIdx += 1
         }
     }
     

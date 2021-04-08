@@ -86,25 +86,25 @@ final class ConformanceTests: BaseLPHTTests {
     // These tests are also testing formIndex(after:) method
     func testIndexAfter_whenIsEndIndex_thenReturnsEndIndex() {
         whenIsEmpty()
-        XCTAssertEqual(sut.index(after: sut.endIndex), sut.endIndex)
+        XCTAssertGreaterThan(sut.index(after: sut.endIndex), sut.endIndex)
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
-        XCTAssertEqual(sut.index(after: sut.endIndex), sut.endIndex)
+        XCTAssertGreaterThan(sut.index(after: sut.endIndex), sut.endIndex)
         
         whenContainsHalfElements()
-        XCTAssertEqual(sut.index(after: sut.endIndex), sut.endIndex)
+        XCTAssertGreaterThan(sut.index(after: sut.endIndex), sut.endIndex)
         
         whenContainsAllElements()
-        XCTAssertEqual(sut.index(after: sut.endIndex), sut.endIndex)
+        XCTAssertGreaterThan(sut.index(after: sut.endIndex), sut.endIndex)
     }
     
-    func testIndexAfter_whenIsLessThanEndIndex_thenReturnsSameIndexMoveToNextFor() {
+    func testIndexAfter_returnsSameIndexMoveToNextOn() {
         whenContainsHalfElements()
         var idx = sut.startIndex
         for _ in 0..<sut.count {
             let result = sut.index(after: idx)
             var expectedResult = idx
-            expectedResult.moveToNext(for: sut)
+            expectedResult.moveToNext(on: sut)
             
             XCTAssertEqual(result, expectedResult)
             idx = result
@@ -119,42 +119,22 @@ final class ConformanceTests: BaseLPHTTests {
         var idx = sut.startIndex
         for _ in 0..<sut.count {
             XCTAssertEqual(sut.index(idx, offsetBy: 0), idx)
-            idx.moveToNext(for: sut)
+            idx.moveToNext(on: sut)
         }
-        XCTAssertEqual(sut.index(after: idx), idx)
+        XCTAssertGreaterThan(sut.index(after: idx), idx)
     }
     
-    func testIndexOffsetBy_whenDistanceIsEqualOrGreaterToThatToEndIndex_thenReturnsEndIndex() {
+    func testIndexOffsetBy_whenDistanceIsGreaterThanZero_thenReturnsAnIndexOffssetedByThatDistance() {
         whenContainsAllElements()
         var idx = sut.startIndex
         for i in 0..<sut.count {
-            var distance = sut.count - i
-            XCTAssertEqual(sut.index(idx, offsetBy: distance), sut.endIndex)
+            var distance = i
+            distance += Int.random(in: 0...10)
+            var expectedResult = idx
+            for _ in stride(from: 0, to: distance, by: 1) { expectedResult.moveToNext(on: sut) }
+            XCTAssertEqual(sut.index(idx, offsetBy: distance), expectedResult)
             
-            distance += Int.random(in: 1...10)
-            XCTAssertEqual(sut.index(idx, offsetBy: distance), sut.endIndex)
-            
-            idx.moveToNext(for: sut)
-        }
-    }
-    
-    func testIndexOffsetBy_whenDistanceIsLessThanThatToEndIndex_thenReturnsIndexOffsetted() {
-        whenContainsAllElements()
-        var idx = sut.startIndex
-        for i in 0..<sut.count {
-            var distance = 0
-            while distance < sut.count - i {
-                var expectedResult = idx
-                for _ in 0..<distance {
-                    expectedResult.moveToNext(for: sut)
-                }
-                let result = sut.index(idx, offsetBy: distance)
-                XCTAssertEqual(result, expectedResult)
-                
-                distance += 1
-            }
-            
-            idx.moveToNext(for: sut)
+            idx.moveToNext(on: sut)
         }
     }
     
@@ -219,15 +199,6 @@ final class ConformanceTests: BaseLPHTTests {
                 sut.formIndex(after: &limit)
             }
             
-            sut.formIndex(after: &idx)
-        }
-    }
-    
-    func testIndexOffsetByLimitedBy_whenLimitIsEndIndexAndOffsettingToDistanceWouldGoBeyondEndIndex_thenReturnsNil() {
-        whenContainsAllElements()
-        var idx = sut.startIndex
-        for distance in stride(from: sut.count + 1, to: 0, by: -1) {
-            XCTAssertNil(sut.index(idx, offsetBy: distance, limitedBy: sut.endIndex))
             sut.formIndex(after: &idx)
         }
     }

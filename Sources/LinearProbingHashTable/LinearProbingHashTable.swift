@@ -34,8 +34,6 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
     
     fileprivate(set) var buffer: LPHTBuffer<Key, Value>? = nil
     
-    fileprivate(set) var id = ID()
-    
     /// Creates an empty hash table.
     public init() { }
     
@@ -57,45 +55,14 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
         self.buffer = LPHTBuffer(capacity: Swift.max(k, Self.minimumBufferCapacity))
     }
     
-    // MARK: - Computed Properties
-    /// The total number of key-value pairs that the hash table can contain without
-    /// allocating new storage.
-    ///
-    /// - Complexity: O(1)
-    public var capacity: Int { buffer?.capacity ?? 0 }
-    
-    /// The number of key-value pairs in the hash table.
-    ///
-    /// - Complexity: O(1).
-    public var count: Int { buffer?.count ?? 0 }
-    
-    /// A Boolean value that indicates whether the hash table is empty.
-    ///
-    /// Hash table are empty when created with an initializer or an empty
-    /// dictionary literal.
-    ///
-    ///     var frequencies: LinearProbingHashTable<String, Int> = [:]
-    ///     print(frequencies.isEmpty)
-    ///     // Prints "true"
-    ///
-    /// - Complexity: O(1).
-    public var isEmpty: Bool { buffer?.isEmpty ?? true }
-    
     // MARK: - C.O.W. helpers
-    init(buffer: LPHTBuffer<Key, Value>?, id: ID = ID()) {
+    init(buffer: LPHTBuffer<Key, Value>?) {
         self.buffer = buffer
-        self.id = id
-    }
-    
-    @inline(__always)
-    mutating func invalidatePreviouslyStoredIndices() {
-        id = ID()
     }
     
     @inline(__always)
     mutating func makeUnique() {
         guard buffer != nil else {
-            id = ID()
             buffer = LPHTBuffer(capacity: Self.minimumBufferCapacity)
             
             return
@@ -117,7 +84,6 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             return
         }
         
-        id = ID()
         let mCapacity = buffer == nil ? Swift.max(k, Self.minimumBufferCapacity) : Swift.max(((count + k) * 3) / 2, capacity * 2)
         buffer = buffer == nil ? LPHTBuffer(capacity: mCapacity) : buffer!.clone(newCapacity: mCapacity)
     }
@@ -132,7 +98,6 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             return
         }
         
-        id = ID()
         buffer = buffer?.clone(newCapacity: capacity * 2)
     }
     
@@ -144,7 +109,6 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             !isEmpty
         else {
             buffer = nil
-            id = ID()
             
             return
         }
@@ -157,7 +121,6 @@ public struct LinearProbingHashTable<Key: Hashable, Value> {
             return
         }
         
-        id = ID()
         let mCapacity = Swift.max(capacity / 2, Self.minimumBufferCapacity)
         buffer = buffer!.clone(newCapacity: mCapacity)
     }

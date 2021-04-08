@@ -27,8 +27,6 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 
 extension LinearProbingHashTable {
-    final class ID {}
-    
     /// The position of a key-value pair in an hash table.
     ///
     /// Hash table has two subscripting interfaces:
@@ -41,22 +39,17 @@ extension LinearProbingHashTable {
     ///
     ///        (k, v) = d[i]
     public struct Index: Comparable {
-        fileprivate(set) var bIdx: Int
-        
-        let id: ID
+        var bIdx: Int
         
         init(asStartIndexOf hashTable: LinearProbingHashTable) {
-            self.id = hashTable.id
             self.bIdx = hashTable.buffer?.startIndex ?? hashTable.capacity + 1
         }
         
         init(asEndIndexOf hashTable: LinearProbingHashTable) {
-            self.id = hashTable.id
             self.bIdx = hashTable.capacity + 1
         }
         
         init?(asIndexForKey k: Key, of hashTable: LinearProbingHashTable) {
-            self.id = hashTable.id
             if  let kIndex = hashTable.buffer?.index(forKey: k),
                 hashTable.buffer!.keys[kIndex] == k
             {
@@ -67,48 +60,47 @@ extension LinearProbingHashTable {
             }
         }
         
-        func isValidFor(_ hashTable: LinearProbingHashTable) -> Bool {
-            hashTable.id === id
-        }
-        
-        mutating func moveToNext(for hashTable: LinearProbingHashTable) {
-            guard
-                isValidFor(hashTable)
-            else {
-                preconditionFailure("Index not valid for this hash table")
-            }
+        func element(on hashTable: LinearProbingHashTable) -> Element? {
+            guard hashTable.buffer != nil else { return nil }
             
             let m = hashTable.capacity + 1
-            guard bIdx < m else { return }
+            guard bIdx < m else { return nil }
             
+            guard
+                let k = hashTable.buffer!.keys[bIdx],
+                let v = hashTable.buffer!.values[bIdx]
+            else { return nil }
+            
+            return (k, v)
+        }
+        
+        @discardableResult
+        mutating func moveToNext(on hashTable: LinearProbingHashTable) -> Element? {
             bIdx += 1
-            while bIdx < m {
-                if hashTable.buffer!.keys[bIdx] != nil {
-                    break
+            if let next = element(on: hashTable) { return next }
+            let m = hashTable.capacity + 1
+            while 0..<m ~= bIdx {
+                if
+                    let k = hashTable.buffer?.keys[bIdx],
+                    let v = hashTable.buffer?.values[bIdx]
+                {
+                    
+                    return (k, v)
                 }
+                
                 bIdx += 1
             }
+            
+            return nil
         }
         
         // MARK: - Comparable Conformance
         public static func < (lhs: LinearProbingHashTable<Key, Value>.Index, rhs: LinearProbingHashTable<Key, Value>.Index) -> Bool {
-            guard
-                lhs.id === rhs.id
-            else {
-                preconditionFailure("cannot compare indices from two different hash tables")
-            }
-            
-            return lhs.bIdx < rhs.bIdx
+            lhs.bIdx < rhs.bIdx
         }
         
         public static func == (lhs: LinearProbingHashTable<Key, Value>.Index, rhs: LinearProbingHashTable<Key, Value>.Index) -> Bool {
-            guard
-                lhs.id === rhs.id
-            else {
-                preconditionFailure("cannot compare indices from two different hash tables")
-            }
-            
-            return lhs.bIdx == rhs.bIdx
+            lhs.bIdx == rhs.bIdx
         }
         
     }
@@ -116,6 +108,23 @@ extension LinearProbingHashTable {
 }
 
 extension LinearProbingHashTable: Collection {
+    /// The number of key-value pairs in the hash table.
+    ///
+    /// - Complexity: O(1).
+    public var count: Int { buffer?.count ?? 0 }
+    
+    /// A Boolean value that indicates whether the hash table is empty.
+    ///
+    /// Hash table are empty when created with an initializer or an empty
+    /// dictionary literal.
+    ///
+    ///     var frequencies: LinearProbingHashTable<String, Int> = [:]
+    ///     print(frequencies.isEmpty)
+    ///     // Prints "true"
+    ///
+    /// - Complexity: O(1).
+    public var isEmpty: Bool { buffer?.isEmpty ?? true }
+    
     public var startIndex: Index {
         Index(asStartIndexOf: self)
     }
@@ -125,7 +134,7 @@ extension LinearProbingHashTable: Collection {
     }
     
     public func formIndex(after i: inout Index) {
-        i.moveToNext(for: self)
+        i.moveToNext(on: self)
     }
     
     public func index(after i: Index) -> Index {
@@ -136,21 +145,8 @@ extension LinearProbingHashTable: Collection {
     }
     
     public func formIndex(_ i: inout Index, offsetBy distance: Int) {
-        precondition(distance >= 0 , "distance must not be negative")
-        precondition(i.isValidFor(self), "invalid index for this hash table")
-        let end = endIndex
-        guard
-            i.bIdx + distance < end.bIdx
-        else {
-            i = end
-            
-            return
-        }
-        
-        var offset = 0
-        while offset < distance {
-            i.moveToNext(for: self)
-            offset += 1
+        for _ in stride(from: 0, to: distance, by: 1) {
+            i.moveToNext(on: self)
         }
     }
     
@@ -163,8 +159,6 @@ extension LinearProbingHashTable: Collection {
     
     public func index(_ i: Index, offsetBy distance: Int, limitedBy limit: Index) -> Index? {
         precondition(distance >= 0 , "distance must not be negative")
-        precondition(i.isValidFor(self), "invalid index for this hash table")
-        precondition(limit.isValidFor(self), "invalid limit index for this hash table")
         // Just ignore the limit when is less than i
         if limit < i { return index(i, offsetBy: distance) }
         
@@ -173,10 +167,7 @@ extension LinearProbingHashTable: Collection {
         for _ in stride(from: 0, to: distance, by: 1) {
             // When we're gonna end up after limit we return nil
             if result == limit { return nil }
-            // When we're already at endIndex with more positions to advance,
-            // we return nil
-            if result == endIndex { return nil }
-            result.moveToNext(for: self)
+            result.moveToNext(on: self)
         }
         
         return result
@@ -184,14 +175,11 @@ extension LinearProbingHashTable: Collection {
     
     public subscript(position: Index) -> (key: Key, value: Value) {
         get {
-            precondition(position.isValidFor(self), "Invalid index for this hash table")
-            let m = capacity + 1
-            precondition((0..<m).contains(position.bIdx), "Index out of bounds")
+            guard
+                let e = position.element(on: self)
+            else { preconditionFailure("Index out of bounds") }
             
-            let k = buffer!.keys[position.bIdx]!
-            let v = buffer!.values[position.bIdx]!
-            
-            return (k, v)
+            return e
         }
     }
     
@@ -200,8 +188,7 @@ extension LinearProbingHashTable: Collection {
 extension LinearProbingHashTable {
     /// Removes and returns the key-value pair at the specified index.
     ///
-    /// Calling this method invalidates any existing indices for use with this
-    /// hash table.
+    /// Calling this method might invalidate indices of the hash table previously stored.
     ///
     /// - Parameter index:  The position of the key-value pair to remove. `index`
     ///                     must be a valid index of the hash table,
@@ -211,18 +198,17 @@ extension LinearProbingHashTable {
     /// - Complexity: Amortized O(1).
     @discardableResult
     public mutating func remove(at index: Index) -> Element {
-        precondition(index.isValidFor(self), "Invalid index for this hash table")
-        let m = capacity + 1
         guard
-            (0..<m).contains(index.bIdx),
-            let removedK = buffer?.keys[index.bIdx]
+            let removedElement = index.element(on: self)
         else {
             preconditionFailure("Index out of bounds")
         }
         
-        let removedV = removeValue(forKey: removedK)!
+        defer {
+            removeValue(forKey: removedElement.key)
+        }
         
-        return (removedK, removedV)
+        return removedElement
     }
     
     /// Returns the index for the given key.

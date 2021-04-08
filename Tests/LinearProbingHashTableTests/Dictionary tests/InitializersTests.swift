@@ -33,12 +33,10 @@ final class InitialzersTests: BaseLPHTTests {
     func testInitDictionaryLiteral() {
         sut = [:]
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
         
         sut = ["a" : 1, "b" : 2, "c" : 3, "d" : 4,]
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.count, 4)
         XCTAssertEqual(sut.getValue(forKey: "a"), 1)
@@ -51,14 +49,12 @@ final class InitialzersTests: BaseLPHTTests {
         let s = [(String, Int)]()
         sut = LinearProbingHashTable(uniqueKeysWithValues: s)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
         
         // same test when sequence doesn't implement withContiguousStorageIfAvailable
         let seq = Seq<(String, Int)>(s)
         sut = LinearProbingHashTable(uniqueKeysWithValues: seq)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
     }
     
@@ -66,7 +62,6 @@ final class InitialzersTests: BaseLPHTTests {
         let elements = givenKeysAndValuesWithoutDuplicateKeys()
         sut = LinearProbingHashTable(uniqueKeysWithValues: elements)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.count, elements.count)
         for (k, v) in elements {
@@ -77,7 +72,6 @@ final class InitialzersTests: BaseLPHTTests {
         let seq = Seq<(String, Int)>(elements)
         sut = LinearProbingHashTable(uniqueKeysWithValues: seq)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.count, seq.elements.count)
         for (k, v) in seq.elements {
@@ -96,7 +90,6 @@ final class InitialzersTests: BaseLPHTTests {
         sut = LinearProbingHashTable(elements, uniquingKeysWith: combine)
         XCTAssertFalse(hasExecuted)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
         
         // same test when sequence doesn't implement withContiguousStorageIfAvailable
@@ -104,7 +97,6 @@ final class InitialzersTests: BaseLPHTTests {
         sut = LinearProbingHashTable(seq, uniquingKeysWith: combine)
         XCTAssertFalse(hasExecuted)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
     }
     
@@ -119,7 +111,6 @@ final class InitialzersTests: BaseLPHTTests {
         sut = LinearProbingHashTable(elements, uniquingKeysWith: combine)
         XCTAssertFalse(hasExecuted)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.count, elements.count)
         for (k, v) in elements {
@@ -131,7 +122,6 @@ final class InitialzersTests: BaseLPHTTests {
         sut = LinearProbingHashTable(seq, uniquingKeysWith: combine)
         XCTAssertFalse(hasExecuted)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.count, seq.elements.count)
         for (k, v) in seq.elements {
@@ -152,7 +142,6 @@ final class InitialzersTests: BaseLPHTTests {
         
         sut = LinearProbingHashTable(elements, uniquingKeysWith: combine)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(countOfExecutions, expectedCountOfExecutions)
         XCTAssertEqual(sut.count, expectedResult.count)
@@ -165,7 +154,6 @@ final class InitialzersTests: BaseLPHTTests {
         let seq = Seq<(String, Int)>(elements)
         sut = LinearProbingHashTable(seq, uniquingKeysWith: combine)
         XCTAssertNotNil(sut)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(countOfExecutions, expectedCountOfExecutions)
         XCTAssertEqual(sut.count, expectedResult.count)
@@ -205,7 +193,6 @@ final class InitialzersTests: BaseLPHTTests {
         
         var result = LinearProbingHashTable(grouping: elements, by: keyForValue)
         XCTAssertNotNil(result)
-        XCTAssertNotNil(result.id)
         XCTAssertNil(result.buffer)
         XCTAssertFalse(hasExecuted)
         
@@ -214,7 +201,6 @@ final class InitialzersTests: BaseLPHTTests {
         hasExecuted = false
         result = LinearProbingHashTable(grouping: seq, by: keyForValue)
         XCTAssertNotNil(result)
-        XCTAssertNotNil(result.id)
         XCTAssertNil(result.buffer)
         XCTAssertFalse(hasExecuted)
     }
@@ -232,7 +218,6 @@ final class InitialzersTests: BaseLPHTTests {
         
         var result = LinearProbingHashTable(grouping: elements, by: keyForValue)
         XCTAssertNotNil(result)
-        XCTAssertNotNil(result.id)
         XCTAssertNotNil(result.buffer)
         XCTAssertEqual(countOfExecutes, elements.count)
         XCTAssertEqual(result.count, expectedResult.count)
@@ -245,7 +230,6 @@ final class InitialzersTests: BaseLPHTTests {
         countOfExecutes = 0
         result = LinearProbingHashTable(grouping: seq, by: keyForValue)
         XCTAssertNotNil(result)
-        XCTAssertNotNil(result.id)
         XCTAssertNotNil(result.buffer)
         XCTAssertEqual(countOfExecutes, seq.elements.count)
         XCTAssertEqual(result.count, expectedResult.count)

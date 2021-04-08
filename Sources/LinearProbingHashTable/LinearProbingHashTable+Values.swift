@@ -109,8 +109,7 @@ extension LinearProbingHashTable {
             _modify {
                 ht.makeUnique()
                 let m = ht.capacity + 1
-                precondition((0..<m).contains(position.bIdx), "Index out of bounds.")
-                precondition(ht.buffer?.keys[position.bIdx] != nil, "Invalid index for this hash table")
+                precondition((0..<m).contains(position.bIdx) && ht.buffer?.keys[position.bIdx] != nil, "Index out of bounds.")
                 yield &ht.buffer!.values.advanced(by: position.bIdx).pointee!
             }
         }

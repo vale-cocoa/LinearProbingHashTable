@@ -99,13 +99,11 @@ class BaseLPHTTests: XCTestCase {
     func testInit() {
         sut = LinearProbingHashTable()
         XCTAssertNil(sut.buffer)
-        XCTAssertNotNil(sut.id)
     }
     
     func testInitMinimumCapacity() {
         let minimumCapacity = Int.random(in: 1..<100)
         sut = LinearProbingHashTable(minimumCapacity: minimumCapacity)
-        XCTAssertNotNil(sut.id)
         XCTAssertNotNil(sut.buffer)
         if sut.buffer != nil {
             XCTAssertGreaterThanOrEqual(sut.buffer!.capacity, minimumCapacity)
@@ -116,13 +114,9 @@ class BaseLPHTTests: XCTestCase {
         var buffer: LPHTBuffer<String, Int>? = nil
         
         sut = LinearProbingHashTable(buffer: buffer)
-        XCTAssertNotNil(sut.id)
         XCTAssertNil(sut.buffer)
         
-        let prevID = LinearProbingHashTable<String, Int>.ID()
-        
-        sut = LinearProbingHashTable(buffer: buffer, id: prevID)
-        XCTAssertTrue(sut.id === prevID)
+        sut = LinearProbingHashTable(buffer: buffer)
         XCTAssertNil(sut.buffer)
         
         
@@ -131,11 +125,6 @@ class BaseLPHTTests: XCTestCase {
         for (k, v) in elements { buffer!.updateValue(v, forKey: k) }
         
         sut = LinearProbingHashTable(buffer: buffer)
-        XCTAssertNotNil(sut.id)
-        XCTAssertTrue(sut.buffer === buffer, "has not the same buffer instance")
-        
-        sut = LinearProbingHashTable(buffer: buffer, id: prevID)
-        XCTAssertTrue(sut.id === prevID)
         XCTAssertTrue(sut.buffer === buffer, "has not the same buffer instance")
     }
     
@@ -186,75 +175,53 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
         }
     }
     
-    func testInvalidatePreviouslyStoredIndices() {
-        weak var prevID = sut.id
-        sut.invalidatePreviouslyStoredIndices()
-        XCTAssertFalse(sut.id === prevID, "has not changed id reference")
-        
-        let idx = sut.startIndex
-        sut.invalidatePreviouslyStoredIndices()
-        XCTAssertFalse(idx.isValidFor(sut), "previously stored index is still valid")
-    }
-    
     // MARK: - makeUnique() tests
-    func testMakeUnique_whenBufferIsNil_thenChangesIDAndInstanciateANewBufferWithMinimumCapacity() {
+    func testMakeUnique_whenBufferIsNil_thenInstanciatesANewBufferWithMinimumCapacity() {
         whenIsEmpty()
-        weak var prevID = sut.id
         
         sut.makeUnique()
-        XCTAssertFalse(sut.id === prevID, "has not changed id reference")
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.buffer?.capacity, minimumBufferCapacity)
     }
     
     func testMakeUnique_whenBufferIsNotNilAndUniquelyReferenced_thenDoesNothing() {
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
-        weak var prevID = sut.id
         weak var prevBuffer = sut.buffer
         
         sut.makeUnique()
-        XCTAssertTrue(sut.id === prevID, "has changed id reference")
         XCTAssertTrue(sut.buffer === prevBuffer, "has changed buffer reference")
         
         whenContainsAllElements()
-        prevID = sut.id
         prevBuffer = sut.buffer
         
         sut.makeUnique()
-        XCTAssertTrue(sut.id === prevID, "has changed id reference")
         XCTAssertTrue(sut.buffer === prevBuffer, "has changed buffer reference")
     }
     
-    func testMakeUnique_whenBufferIsNotNilAndNotUniquelyReferenced_thenClonesBufferAndDoesntChangeID() {
+    func testMakeUnique_whenBufferIsNotNilAndNotUniquelyReferenced_thenClonesBuffer() {
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
-        weak var prevID = sut.id
         var otherBufferStrongReference = sut.buffer
         
         sut.makeUnique()
-        XCTAssertTrue(sut.id === prevID, "has changed id reference")
         XCTAssertFalse(sut.buffer === otherBufferStrongReference, "has not cloned buffer")
         XCTAssertNotNil(sut.buffer)
         XCTAssertEqual(sut.buffer?.isEmpty, otherBufferStrongReference?.isEmpty)
         
         whenContainsAllElements()
-        prevID = sut.id
         otherBufferStrongReference = sut.buffer
         
         sut.makeUnique()
-        XCTAssertTrue(sut.id === prevID, "has changed id reference")
         XCTAssertFalse(sut.buffer === otherBufferStrongReference, "has not cloned buffer")
         XCTAssertNotNil(sut.buffer)
         // Correct cloning of elements check is done in buffer's tests
     }
     
     // MARK: - makeUniqueReserving(minimumCapacity:) tests
-    func testMakeUniqueReservingMinimumCapacity_whenBufferIsNil_thenInstanciateNewBufferWithCapacityGreaterThanOrEqualToMinimumCapacityAndChangesId() {
+    func testMakeUniqueReservingMinimumCapacity_whenBufferIsNil_thenInstanciateNewBufferWithCapacityGreaterThanOrEqualToMinimumCapacity() {
         for minCapaity in 0..<10 {
             whenIsEmpty()
-            weak var prevID = sut.id
             
             sut.makeUniqueReserving(minimumCapacity: minCapaity)
-            XCTAssertFalse(sut.id === prevID, "has not changed id")
             XCTAssertNotNil(sut.buffer)
             XCTAssertGreaterThanOrEqual(sut.capacity, minCapaity)
         }
@@ -263,40 +230,34 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
     func testMakeUniqueReservingMinimumCapacity_whenBufferIsNotNilAndUniquelyReferencedAndMinCapacityIsLessThanOrEqualToBufferFreeCapacity_thenNothingChanges() {
         whenContainsAllElements()
         for minCapacity in 0...sut.buffer!.freeCapacity {
-            weak var prevID = sut.id
             weak var prevBuffer = sut.buffer
             
             sut.makeUniqueReserving(minimumCapacity: minCapacity)
-            XCTAssertTrue(sut.id === prevID, "has changed id")
             XCTAssertTrue(sut.buffer === prevBuffer, "has changed buffer")
             XCTAssertNotNil(sut.buffer)
             // Correct cloning of elements check is done in buffer's tests
         }
     }
     
-    func testMakeUniqueReservingMinimumCapacity_whenBufferIsNotNilAndNotUniquelyReferencedAndMinCapacityIsLessThanOrEqualToBufferFreeCapacity_thenClonesBufferAndDoesntChangeId() {
+    func testMakeUniqueReservingMinimumCapacity_whenBufferIsNotNilAndNotUniquelyReferencedAndMinCapacityIsLessThanOrEqualToBufferFreeCapacity_thenClonesBuffer() {
         whenContainsAllElements()
         for minCapacity in 0...sut.buffer!.freeCapacity {
-            weak var prevID = sut.id
             let otherBufferStrongReference = sut.buffer
             
             sut.makeUniqueReserving(minimumCapacity: minCapacity)
-            XCTAssertTrue(sut.id === prevID, "has changed id")
             XCTAssertFalse(sut.buffer === otherBufferStrongReference, "has not cloned buffer")
             // Correct cloning of elements check is done in buffer's tests
         }
     }
     
-    func testMakeUniqueReservingCapacity_whenBufferIsNotNilAndMinCapacityIsGreaterThanBufferFreeCapacity_thenClonesBufferToOneWithLargerCapacityAndChangesId() {
+    func testMakeUniqueReservingCapacity_whenBufferIsNotNilAndMinCapacityIsGreaterThanBufferFreeCapacity_thenClonesBufferToOneWithLargerCapacity() {
         whenContainsAllElements()
         let lBound = sut.buffer!.capacity + 1
         let uBound = lBound * 2
         for minCapacity in lBound..<uBound {
-            weak var prevID = sut.id
             let prevBuffer = sut.buffer
             
             sut.makeUniqueReserving(minimumCapacity: minCapacity)
-            XCTAssertFalse(sut.id === prevID, "has not changed id reference")
             XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
             if sut.buffer != nil && prevBuffer != nil {
                 XCTAssertGreaterThan(sut.buffer!.capacity, prevBuffer!.capacity)
@@ -312,12 +273,10 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
     }
     
     // MARK: - makeUniqueEventuallyIncreasingCapacity() tests
-    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNil_thenInstanciatesNewBufferAndChangesId() {
+    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNil_thenInstanciatesNewBuffer() {
         whenIsEmpty()
-        weak var prevID = sut.id
         
         sut.makeUniqueEventuallyIncreasingCapacity()
-        XCTAssertFalse(sut.id === prevID, "has not changed id")
         XCTAssertNotNil(sut.buffer)
     }
     
@@ -325,36 +284,30 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
         whenContainsAllElements()
         sut.makeUniqueReserving(minimumCapacity: 10)
         XCTAssertFalse(sut.buffer!.isFull)
-        weak var prevID = sut.id
         weak var prevBuffer = sut.buffer
         
         sut.makeUniqueEventuallyIncreasingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
         XCTAssertTrue(sut.buffer === prevBuffer, "has changed buffer")
     }
     
-    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNotNilNotFullAndNotUniquelyReferenced_thenClonesBufferAndDoesntChangeID() {
+    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNotNilNotFullAndNotUniquelyReferenced_thenClonesBuffer() {
         whenContainsAllElements()
         sut.makeUniqueReserving(minimumCapacity: 10)
         XCTAssertFalse(sut.buffer!.isFull)
-        weak var prevID = sut.id
         let otherBufferStrongReference = sut.buffer!
         
         sut.makeUniqueEventuallyIncreasingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
         XCTAssertNotNil(sut.buffer)
         XCTAssertFalse(sut.buffer === otherBufferStrongReference)
         // Correct cloning of elements check is done in buffer's tests
     }
     
-    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNotNilAndFull_thenClonesBufferToLargerOneAndChangesId() {
+    func testMakeUniqueEventuallyIncreasingCapacity_whenBufferIsNotNilAndFull_thenClonesBufferToLargerOne() {
         whenContainsAllElements()
         XCTAssertTrue(sut.buffer!.isFull)
-        weak var prevID = sut.id
         let prevBuffer = sut.buffer!
         
         sut.makeUniqueEventuallyIncreasingCapacity()
-        XCTAssertFalse(sut.id === prevID, "has not changed id")
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         if sut.buffer != nil {
             XCTAssertGreaterThan(sut.buffer!.capacity, prevBuffer.capacity)
@@ -367,55 +320,45 @@ final class LinearProbingHashTableTests: BaseLPHTTests {
     // MARK: - makeUniqueEventuallyReducingCapacity() tests
     func testMakeUniqueEventuallyDecreasingCapacity_whenBufferIsNil_thenNothingChanges() {
         whenIsEmpty()
-        weak var prevID = sut.id
         
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
         XCTAssertNil(sut.buffer)
     }
     
-    func testMakeUniqueEventuallyDecreasingCapacity_whenBufferIsNotNilAndEmpty_thenBufferIsSetToNilAndChangesId() {
+    func testMakeUniqueEventuallyDecreasingCapacity_whenBufferIsNotNilAndEmpty_thenBufferIsSetToNil() {
         whenIsEmpty(withCapacity: 10)
-        weak var prevID = sut.id
         
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertFalse(sut.id === prevID, "has not changed id")
         XCTAssertNil(sut.buffer)
     }
     
     func testMakeUniqueEventuallyReducingCapacity_whenBufferIsNotEmptyAndNotTooSparseAndUniqueReference_thenNothingChanges() {
         whenContainsAllElements()
         XCTAssertFalse(sut.buffer!.isTooSparse)
-        weak var prevID = sut.id
         weak var prevBuffer = sut.buffer
         
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
         XCTAssertTrue(sut.buffer === prevBuffer, "has changed buffer")
     }
     
-    func testMakeUniqueEventuallyReducingCapacity_whenBufferIsNotEmptyAndNotTooSparseAndNotUniquelyReferenced_thenClonesBufferAndDoesntChangesID() {
+    func testMakeUniqueEventuallyReducingCapacity_whenBufferIsNotEmptyAndNotTooSparseAndNotUniquelyReferenced_thenClonesBuffer() {
         whenContainsAllElements()
         XCTAssertFalse(sut.buffer!.isTooSparse)
-        weak var prevID = sut.id
         let otherBufferStrongReference = sut.buffer!
         
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertTrue(sut.id === prevID, "has changed id")
         XCTAssertFalse(sut.buffer === otherBufferStrongReference, "has not cloned buffer")
         XCTAssertEqual(sut.buffer?.capacity, otherBufferStrongReference.capacity)
         // Correct cloning of elements check is done in buffer's tests
     }
     
-    func testMakeUniqueEventuallyReducingCapacity_whenBufferIsNotEmptyAndTooSparse_thenClonesBufferToSmallerOneAndChangesID() {
+    func testMakeUniqueEventuallyReducingCapacity_whenBufferIsNotEmptyAndTooSparse_thenClonesBufferToSmallerOne() {
         whenContainsAllElements()
         sut.makeUniqueReserving(minimumCapacity: sut.count * 8)
         XCTAssertTrue(sut.buffer!.isTooSparse)
         
-        weak var prevID = sut.id
         let prevBuffer = sut.buffer!
         sut.makeUniqueEventuallyReducingCapacity()
-        XCTAssertFalse(sut.id === prevID, "has not changed id")
         XCTAssertFalse(sut.buffer === prevBuffer, "has not cloned buffer")
         if sut.buffer != nil {
             XCTAssertLessThan(sut.buffer!.capacity, prevBuffer.capacity)

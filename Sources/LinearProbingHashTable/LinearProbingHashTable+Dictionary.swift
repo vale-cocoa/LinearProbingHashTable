@@ -27,6 +27,13 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 
 extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
+    // MARK: - Computed Properties
+    /// The total number of key-value pairs that the hash table can contain without
+    /// allocating new storage.
+    ///
+    /// - Complexity: O(1)
+    public var capacity: Int { buffer?.capacity ?? 0 }
+    
     public init(dictionaryLiteral elements: (Key, Value)...) {
         self.init(uniqueKeysWithValues: elements)
     }
@@ -186,7 +193,7 @@ extension LinearProbingHashTable: ExpressibleByDictionaryLiteral {
     }
     
     fileprivate init(_ other: LinearProbingHashTable) {
-        self.init(buffer: other.buffer, id: other.id)
+        self.init(buffer: other.buffer)
     }
     
 }
@@ -198,7 +205,7 @@ extension LinearProbingHashTable {
     /// method to avoid multiple reallocations. This method ensures that the
     /// hash table has unique, mutable, contiguous storage, with space allocated
     /// for at least the requested number of key-value pairs.
-    /// This method might invalidate all indices of the hash table.
+    /// This method might invalidate indices of the hash table previously stored.
     ///
     /// - Parameter minimumCapacity:    The requested number of
     ///                                 key-value pairs to store.
@@ -212,7 +219,7 @@ extension LinearProbingHashTable {
     ///
     /// This *key-based* subscript returns the value for the given key if the key
     /// is found in the hash table, or `nil` if the key is not found.
-    /// The setter of this subscript might invalidate all indices of the hash table.
+    /// The setter of this subscript might invalidate indices of the hash table previously stored.
     ///
     /// The following example creates a new hash table and prints the value of a
     /// key found in the has table (`"Coral"`) and a key not found in the
@@ -277,7 +284,7 @@ extension LinearProbingHashTable {
     ///
     /// Use this subscript when you want either the value for a particular key
     /// or, when that key is not present in the hash table, a default value.
-    /// The setter of this subscript might invalidate all indices of the hash table.
+    /// The setter of this subscript might invalidate indices of the hash table previously stored.
     /// This example uses the subscript with a message to use in case an HTTP response
     /// code isn't recognized:
     ///
@@ -335,7 +342,6 @@ extension LinearProbingHashTable {
             (self, other) = (other, self)
             var ptr: UnsafeMutablePointer<Value?>
             var b = other.buffer!
-            var nID = other.id
             var i = b.index(forKey: key)
             if b.keys[i] != nil {
                 ptr = b.values.advanced(by: i)
@@ -344,14 +350,13 @@ extension LinearProbingHashTable {
                     let newCap = Swift.max(b.capacity * 2, b.count * 3 / 2)
                     b = b.clone(newCapacity: newCap)
                     i = b.index(forKey: key)
-                    nID = ID()
                 }
                 b.updateValue(defaultValue(), forKey: key)
                 ptr = b.values.advanced(by: i)
             }
             
             defer {
-                self = LinearProbingHashTable(buffer: b, id: nID)
+                self = LinearProbingHashTable(buffer: b)
             }
             yield &ptr.pointee!
         }
@@ -374,7 +379,7 @@ extension LinearProbingHashTable {
     /// Use this method instead of key-based subscripting when you need to know
     /// whether the new value supplants the value of an existing key. If the
     /// value of an existing key is updated, `updateValue(_:forKey:)` returns
-    /// the original value. This method might invalidate all indices of the hash table.
+    /// the original value. This method might invalidate indices of the hash table previously stored.
     ///
     ///     var hues: LinearProbingHashTable<String, Int> = ["Heliotrope": 296, "Coral": 16, "Aquamarine": 156]
     ///
@@ -411,7 +416,7 @@ extension LinearProbingHashTable {
     /// Removes the given key and its associated value from the hash table.
     ///
     /// If the key is found in the hash table, this method returns the key's
-    /// associated value. This method might invalidate all indices of the hash table.
+    /// associated value. This method might invalidate indices of the hash table previously stored.
     ///
     ///     var hues: LinearProbingHashTable<String, Int> = ["Heliotrope": 296, "Coral": 16, "Aquamarine": 156]
     ///     if let value = hues.removeValue(forKey: "Coral") {
@@ -437,18 +442,13 @@ extension LinearProbingHashTable {
     @discardableResult
     public mutating func removeValue(forKey k: Key) -> Value? {
         makeUniqueEventuallyReducingCapacity()
-        if let v = buffer?.removeElement(withKey: k)?.value {
-            invalidatePreviouslyStoredIndices()
-            
-            return v
-        }
         
-        return nil
+        return buffer?.removeElement(withKey: k)?.value
     }
         
     /// Removes all key-value pairs from the hash table.
     ///
-    /// Calling this method might invalidate all indices of the hash table.
+    /// Calling this method might invalidate indices of the hash table previously stored.
     ///
     /// - Parameter keepCapacity:   Whether the hash table should keep its
     ///                             underlying buffer.
@@ -481,7 +481,7 @@ extension LinearProbingHashTable {
     /// with the current and new values for any duplicate keys that are
     /// encountered.
     ///
-    /// This method invalidates all indices of the hash table.
+    /// This method might invalidate indices of the hash table previously stored.
     /// This example shows how to choose the current or new values for any
     /// duplicate keys:
     ///
@@ -527,7 +527,7 @@ extension LinearProbingHashTable {
     /// is called with the current and new values for any duplicate keys that
     /// are encountered.
     ///
-    /// This method might invalidate all indices of the hash table.
+    /// This method might invalidate indices of the hash table previously stored.
     /// This example shows how to choose the current or new values for any
     /// duplicate keys:
     ///
@@ -552,14 +552,13 @@ extension LinearProbingHashTable {
         guard !other.isEmpty else { return }
         
         guard !isEmpty else {
-            self = LinearProbingHashTable(buffer: other.buffer, id: other.id)
+            self = LinearProbingHashTable(buffer: other.buffer)
             
             return
         }
         
         let mergedBuffer = try buffer!.merging(other.buffer!, uniquingKeysWith: combine)
-        let nID = mergedBuffer.capacity == capacity ? id : ID()
-        self = LinearProbingHashTable(buffer: mergedBuffer, id: nID)
+        self = LinearProbingHashTable(buffer: mergedBuffer)
     }
     
     /// Creates an hash table by merging the given hash table into this
@@ -707,9 +706,8 @@ extension LinearProbingHashTable {
     /// - Returns: An hash table of the key-value pairs that `isIncluded` allows.
     public func filter(_ isIncluded: (Element) throws -> Bool) rethrows -> LinearProbingHashTable {
         let filtered: LPHTBuffer<Key, Value>? = try buffer?.filter(isIncluded)
-        let nId = (filtered?.count ?? 0) == count ? id : ID()
         
-        return LinearProbingHashTable(buffer: filtered, id: nId)
+        return LinearProbingHashTable(buffer: filtered)
     }
     
 }

@@ -205,42 +205,34 @@ final class MergeTests: BaseLPHTTests {
         let other = LinearProbingHashTable<String, Int>()
         whenIsEmpty()
         weak var prevBuffer = sut.buffer
-        var prevID = sut.id
         
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === prevBuffer, "buffer has changed")
-        XCTAssertTrue(sut.id === prevID)
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         prevBuffer = sut.buffer
-        prevID = sut.id
         countOfExeutions = 0
         
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === prevBuffer, "buffer has changed")
-        XCTAssertTrue(sut.id === prevID)
         
         whenContainsHalfElements()
         prevBuffer = sut.buffer
-        prevID = sut.id
         countOfExeutions = 0
         
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === prevBuffer, "buffer has changed")
-        XCTAssertTrue(sut.id === prevID)
         
         whenContainsAllElements()
         prevBuffer = sut.buffer
-        prevID = sut.id
         countOfExeutions = 0
         
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === prevBuffer, "buffer has changed")
-        XCTAssertTrue(sut.id === prevID)
     }
     
     func testMergeOther_whenIsEmptyAndOtherIsNotEmpty_thenCombineNeverExecutesAndSetsBufferAndIDtoOthers() {
@@ -257,7 +249,6 @@ final class MergeTests: BaseLPHTTests {
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === other.buffer, "has not set buffer to other's one")
-        XCTAssertTrue(sut.id === other.id, "has not set id to other's one")
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         countOfExeutions = 0
@@ -265,7 +256,6 @@ final class MergeTests: BaseLPHTTests {
         sut.merge(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(sut.buffer === other.buffer, "has not set buffer to other's one")
-        XCTAssertTrue(sut.id === other.id, "has not set id to other's one")
     }
     
     func testMergeOther_whenBothArentEmptyAndNoDuplicateKeys_thenCombineNeverExecutesAndOtherElementsAreInserted() {
@@ -338,7 +328,6 @@ final class MergeTests: BaseLPHTTests {
         var merged = sut.merging(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
-        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
         
         whenIsEmpty(withCapacity: Int.random(in: 1...10))
         countOfExeutions = 0
@@ -346,7 +335,6 @@ final class MergeTests: BaseLPHTTests {
         merged = sut.merging(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
-        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
         
         whenContainsHalfElements()
         countOfExeutions = 0
@@ -354,7 +342,6 @@ final class MergeTests: BaseLPHTTests {
         merged = sut.merging(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
-        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
         
         whenContainsAllElements()
         countOfExeutions = 0
@@ -362,7 +349,6 @@ final class MergeTests: BaseLPHTTests {
         merged = sut.merging(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(merged.buffer === sut.buffer, "has not same buffer of sut")
-        XCTAssertTrue(merged.id === sut.id, "has not same id of sut")
     }
     
     func testMergingOther_whenIsEmptyAndOtherIsNotEmpty_thenCombineNeverExecutesAndReturnsOther() {
@@ -378,7 +364,6 @@ final class MergeTests: BaseLPHTTests {
         let merged = sut.merging(other, uniquingKeysWith: combine)
         XCTAssertEqual(countOfExeutions, 0, "combine has executed")
         XCTAssertTrue(merged.buffer === other.buffer, "has not same buffer of other")
-        XCTAssertTrue(merged.id === other.id, "has not same id of other")
     }
     
     func testMergingOther_whenBothArentEmptyAndNoDuplicateKeys_thenCombineNeverExecutesAndReturnsMerged() {
